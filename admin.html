@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0D3B12" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Admin Console | ALTITUDE 2026</title>
+<link rel="icon" type="image/png" href="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+<link rel="stylesheet" href="css/styles.css" />
+<link rel="stylesheet" href="css/admin.css" />
+
+<style>
+/* ============================================================
+   QUANTUM ADMIN CONSOLE v6.0 — Premium Enterprise UI
+   ============================================================ */
+
+body.admin-body {
+  background: #0a0a0a;
+  background-image:
+    radial-gradient(circle at 10% 10%, rgba(76,175,80,0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(129,199,132,0.04) 0%, transparent 40%);
+}
+
+/* ============ LOGIN — CINEMATIC ============ */
+.login-screen {
+  background: linear-gradient(135deg, #051D08 0%, #0D3B12 40%, #1B5E20 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-screen::before,
+.login-screen::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(76,175,80,0.2), transparent 70%);
+  animation: floatOrb 10s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.login-screen::before {
+  width: 500px; height: 500px;
+  top: -150px; left: -150px;
+}
+
+.login-screen::after {
+  width: 600px; height: 600px;
+  bottom: -200px; right: -200px;
+  animation-delay: -5s;
+}
+
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0,0) scale(1); opacity: 0.6; }
+  50% { transform: translate(50px,-40px) scale(1.15); opacity: 0.9; }
+}
+
+.login-card {
+  background: rgba(255,255,255,0.05) !important;
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  box-shadow: 0 30px 100px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+  color: #fff;
+  animation: cardEntry 0.8s cubic-bezier(0.34,1.56,0.64,1);
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes cardEntry {
+  from { opacity: 0; transform: translateY(40px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.login-header h1 { color: #fff !important; font-family: 'Montserrat', sans-serif; }
+.login-header p { color: rgba(255,255,255,0.6) !important; }
+
+.login-form label { color: rgba(255,255,255,0.85) !important; }
+.login-form label i { color: #81C784 !important; }
+
+.login-form input {
+  background: rgba(255,255,255,0.06) !important;
+  border: 1.5px solid rgba(255,255,255,0.15) !important;
+  color: #fff !important;
+}
+
+.login-form input::placeholder { color: rgba(255,255,255,0.35) !important; }
+
+.login-form input:focus {
+  border-color: #66BB6A !important;
+  background: rgba(255,255,255,0.1) !important;
+  box-shadow: 0 0 0 4px rgba(76,175,80,0.15) !important;
+}
+
+.password-toggle { color: rgba(255,255,255,0.5) !important; }
+.password-toggle:hover { background: rgba(255,255,255,0.1) !important; color: #fff !important; }
+
+.back-to-site { color: rgba(255,255,255,0.5) !important; }
+.back-to-site:hover { color: #81C784 !important; }
+
+/* ============ SIDEBAR — PREMIUM DARK ============ */
+.admin-sidebar {
+  background: linear-gradient(180deg, #0a0a0a 0%, #0D3B12 100%) !important;
+  border-right: 1px solid rgba(76,175,80,0.15);
+  box-shadow: 4px 0 30px rgba(0,0,0,0.4);
+  position: relative;
+}
+
+.admin-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, #4CAF50 50%, transparent);
+  opacity: 0.4;
+}
+
+.sidebar-header {
+  padding: 20px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  background: linear-gradient(180deg, rgba(76,175,80,0.08), transparent);
+}
+
+.sidebar-header img { filter: drop-shadow(0 4px 12px rgba(76,175,80,0.4)); }
+
+.sidebar-nav { padding: 12px 0 !important; }
+
+.sidebar-link {
+  padding: 11px 20px !important;
+  font-size: 0.86rem !important;
+  color: rgba(255,255,255,0.7) !important;
+  border-left: 3px solid transparent !important;
+  transition: all 0.25s cubic-bezier(0.25,1,0.5,1) !important;
+  position: relative;
+  gap: 10px !important;
+}
+
+.sidebar-link i { width: 18px !important; height: 18px !important; }
+
+.sidebar-link:hover {
+  background: rgba(76,175,80,0.1) !important;
+  color: #fff !important;
+  border-left-color: rgba(76,175,80,0.5) !important;
+  padding-left: 24px !important;
+}
+
+.sidebar-link.active {
+  background: linear-gradient(90deg, rgba(76,175,80,0.2), transparent) !important;
+  color: #fff !important;
+  border-left-color: #4CAF50 !important;
+  font-weight: 600;
+}
+
+.sidebar-link.active::after {
+  content: '';
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4CAF50;
+  box-shadow: 0 0 10px #4CAF50;
+}
+
+.sidebar-divider {
+  padding: 20px 20px 6px !important;
+  font-size: 0.65rem !important;
+  color: rgba(255,255,255,0.3) !important;
+  letter-spacing: 2.5px !important;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  margin-top: 12px;
+}
+
+.sidebar-footer {
+  background: rgba(0,0,0,0.4);
+  border-top: 1px solid rgba(76,175,80,0.15) !important;
+  padding: 16px 20px !important;
+}
+
+.admin-avatar {
+  background: linear-gradient(135deg, #2E7D32, #4CAF50) !important;
+  box-shadow: 0 4px 15px rgba(76,175,80,0.4);
+}
+
+.admin-name { color: #fff !important; font-weight: 700 !important; }
+.admin-role { color: #81C784 !important; }
+
+.btn-logout {
+  background: rgba(211,47,47,0.15) !important;
+  border: 1px solid rgba(211,47,47,0.3);
+  color: #EF9A9A !important;
+}
+
+.btn-logout:hover {
+  background: rgba(211,47,47,0.3) !important;
+  color: #fff !important;
+  transform: scale(1.05);
+}
+
+/* ============ MAIN TOPBAR ============ */
+.admin-main { background: #f5f7fa; }
+
+.admin-topbar {
+  background: #fff;
+  border-bottom: 1px solid #e0e4e8;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  padding: 12px 24px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+}
+
+.admin-topbar h2 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  color: #1a1a1a;
+  font-size: 1.1rem !important;
+  letter-spacing: -0.01em;
+}
+
+.topbar-actions { gap: 6px !important; }
+
+.btn-icon {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 10px !important;
+  background: #f5f7fa;
+  border: 1px solid #e0e4e8;
+  color: #555 !important;
+  transition: all 0.25s !important;
+  position: relative;
+}
+
+.btn-icon:hover {
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9) !important;
+  color: #2E7D32 !important;
+  border-color: #81C784;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76,175,80,0.2);
+}
+
+.btn-icon i { width: 18px !important; height: 18px !important; }
+
+/* ============ STATS GRID ============ */
+.stats-grid {
+  gap: 14px !important;
+  margin-bottom: 24px !important;
+}
+
+.stat-box {
+  background: #fff !important;
+  border: 1px solid #e8ebef !important;
+  border-radius: 14px !important;
+  padding: 18px 20px !important;
+  transition: all 0.3s cubic-bezier(0.25,1,0.5,1) !important;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.stat-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.6;
+  transition: opacity 0.3s;
+}
+
+.stat-box:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+}
+
+.stat-box:hover::before { opacity: 1; }
+
+.stat-box.green { color: #4CAF50; }
+.stat-box.yellow { color: #F9A825; }
+.stat-box.red { color: #D32F2F; }
+.stat-box.blue { color: #1565C0; }
+.stat-box.purple { color: #7B1FA2; }
+.stat-box.teal { color: #00897B; }
+.stat-box.orange { color: #F57C00; }
+.stat-box.brown { color: #795548; }
+.stat-box.gold { color: #FF8F00; }
+.stat-box.green-dark { color: #1B5E20; }
+
+.stat-box i {
+  width: 24px !important;
+  height: 24px !important;
+  color: currentColor !important;
+  padding: 8px;
+  background: currentColor !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+  box-sizing: content-box !important;
+}
+
+.stat-box .num {
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 1.6rem !important;
+  font-weight: 900 !important;
+  color: #1a1a1a !important;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.stat-box .lbl {
+  font-size: 0.7rem !important;
+  color: #888 !important;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ============ DASHBOARD CARDS ============ */
+.dashboard-grid {
+  gap: 20px !important;
+  margin-bottom: 24px !important;
+}
+
+.dash-card {
+  background: #fff !important;
+  border: 1px solid #e8ebef !important;
+  border-radius: 16px !important;
+  padding: 22px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: box-shadow 0.3s;
+}
+
+.dash-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+
+.dash-card h3 {
+  font-size: 1rem !important;
+  color: #1a1a1a !important;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f0f2f5;
+  margin-bottom: 16px !important;
+}
+
+.dash-card h3 i {
+  color: #4CAF50 !important;
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+  padding: 6px;
+  border-radius: 8px;
+  box-sizing: content-box;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Group bars */
+.group-bar {
+  margin-bottom: 14px;
+  padding: 4px 0;
+}
+
+.group-bar-label {
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  color: #333 !important;
+  min-width: 70px !important;
+}
+
+.group-bar-track {
+  height: 12px !important;
+  background: #f0f2f5 !important;
+  border-radius: 6px !important;
+  overflow: hidden;
+}
+
+.group-bar-fill {
+  background: linear-gradient(90deg, #4CAF50, #81C784) !important;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1);
+  transition: width 1s cubic-bezier(0.25,1,0.5,1) !important;
+}
+
+.group-bar-count {
+  font-size: 0.9rem !important;
+  font-weight: 800 !important;
+  color: #2E7D32 !important;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Activity */
+.activity-item {
+  padding: 12px 0 !important;
+  border-bottom: 1px solid #f0f2f5 !important;
+  transition: padding-left 0.2s;
+}
+
+.activity-item:hover { padding-left: 6px !important; }
+.activity-item:last-child { border-bottom: none !important; }
+
+.activity-action {
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  background: #E8F5E9;
+  color: #2E7D32;
+  border-radius: 50px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.activity-desc {
+  font-size: 0.88rem !important;
+  color: #333 !important;
+  line-height: 1.4;
+}
+
+.activity-time {
+  font-size: 0.72rem !important;
+  color: #999 !important;
+  margin-top: 2px;
+}
+
+/* Top Clubs */
+.top-club-row {
+  padding: 10px 0 !important;
+  border-bottom: 1px solid #f0f2f5 !important;
+  transition: all 0.2s;
+}
+
+.top-club-row:hover {
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 10px 12px !important;
+}
+
+.top-club-rank {
+  font-size: 0.85rem !important;
+  font-weight: 900 !important;
+  background: linear-gradient(135deg, #2E7D32, #4CAF50);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  min-width: 32px !important;
+}
+
+.top-club-name {
+  font-size: 0.9rem !important;
+  color: #333 !important;
+  font-weight: 500;
+}
+
+.top-club-count {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.85rem !important;
+  font-weight: 700;
+  padding: 4px 10px;
+  background: #f0f2f5;
+  color: #555;
+  border-radius: 50px;
+}
+
+.top-club-count.success { background: #E8F5E9; color: #2E7D32; }
+.top-club-count.warning { background: #FFF3E0; color: #E65100; }
+.top-club-count.danger { background: #FFEBEE; color: #C62828; }
+
+/* ============ TABLES ============ */
+.view-header {
+  background: #fff;
+  padding: 18px 22px;
+  border-radius: 14px;
+  border: 1px solid #e8ebef;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  margin-bottom: 20px !important;
+}
+
+.search-input {
+  padding: 11px 16px 11px 42px !important;
+  border-radius: 10px !important;
+  border: 1.5px solid #e0e4e8 !important;
+  background: #fff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: 14px center !important;
+  transition: all 0.2s !important;
+}
+
+.search-input:focus {
+  border-color: #4CAF50 !important;
+  box-shadow: 0 0 0 4px rgba(76,175,80,0.12) !important;
+}
+
+.filter-select {
+  padding: 11px 34px 11px 14px !important;
+  border-radius: 10px !important;
+  border: 1.5px solid #e0e4e8 !important;
+  font-weight: 500;
+}
+
+.filter-select:focus { border-color: #4CAF50 !important; }
+
+.table-container {
+  background: #fff !important;
+  border-radius: 14px !important;
+  border: 1px solid #e8ebef !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+
+.admin-table thead {
+  background: linear-gradient(180deg, #f8f9fa, #f0f2f5) !important;
+  border-bottom: 2px solid #e0e4e8;
+}
+
+.admin-table th {
+  padding: 14px 18px !important;
+  font-size: 0.72rem !important;
+  color: #555 !important;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+  border-bottom: none !important;
+}
+
+.admin-table td {
+  padding: 14px 18px !important;
+  font-size: 0.88rem !important;
+  color: #333 !important;
+  border-bottom: 1px solid #f0f2f5 !important;
+  vertical-align: middle;
+}
+
+.admin-table tbody tr {
+  transition: background 0.15s;
+}
+
+.admin-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(76,175,80,0.04), transparent) !important;
+}
+
+.admin-table code {
+  background: #E8F5E9 !important;
+  color: #2E7D32 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.78rem !important;
+  padding: 3px 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid #C8E6C9 !important;
+  transition: all 0.2s;
+}
+
+.admin-table code:hover {
+  background: #C8E6C9 !important;
+  transform: scale(1.05);
+}
+
+.admin-table small { color: #999 !important; font-size: 0.75rem !important; }
+
+.admin-table tr.row-checked {
+  background: linear-gradient(90deg, rgba(76,175,80,0.08), transparent) !important;
+  border-left: 3px solid #4CAF50;
+}
+
+/* Status Badges */
+.status-badge {
+  font-size: 0.68rem !important;
+  padding: 4px 12px !important;
+  border-radius: 50px !important;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-badge.green { background: linear-gradient(135deg, #E8F5E9, #C8E6C9); color: #2E7D32; border: 1px solid #A5D6A7; }
+.status-badge.yellow { background: linear-gradient(135deg, #FFFDE7, #FFF9C4); color: #F57F17; border: 1px solid #FFF176; }
+.status-badge.red { background: linear-gradient(135deg, #FFEBEE, #FFCDD2); color: #C62828; border: 1px solid #EF9A9A; }
+.status-badge.blue { background: linear-gradient(135deg, #E3F2FD, #BBDEFB); color: #1565C0; border: 1px solid #90CAF9; }
+.status-badge.orange { background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100; border: 1px solid #FFCC80; }
+.status-badge.gray { background: #f0f2f5; color: #757575; border: 1px solid #e0e4e8; }
+.status-badge.purple { background: #F3E5F5; color: #7B1FA2; border: 1px solid #CE93D8; }
+
+.food-badge {
+  font-size: 0.65rem !important;
+  padding: 3px 10px !important;
+  border-radius: 50px !important;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.food-badge.veg { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+.food-badge.nonveg { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+
+/* Action Buttons */
+.action-btns { display: flex; gap: 4px; }
+
+.btn-sm {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1) !important;
+  background: #f5f7fa !important;
+  border: 1px solid #e0e4e8 !important;
+}
+
+.btn-sm:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.12);
+}
+
+.btn-sm.green { color: #2E7D32; }
+.btn-sm.green:hover { background: #E8F5E9 !important; border-color: #4CAF50 !important; }
+.btn-sm.red { color: #C62828; }
+.btn-sm.red:hover { background: #FFEBEE !important; border-color: #D32F2F !important; }
+.btn-sm.blue { color: #1565C0; }
+.btn-sm.blue:hover { background: #E3F2FD !important; border-color: #1976D2 !important; }
+
+.btn-sm i { width: 15px !important; height: 15px !important; }
+
+.inline-input {
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #e0e4e8 !important;
+  width: 70px !important;
+  font-weight: 700 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.inline-input:focus {
+  border-color: #4CAF50 !important;
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.15) !important;
+}
+
+/* Att Summary */
+.att-summary { gap: 12px !important; margin-bottom: 20px !important; }
+
+.att-stat {
+  background: #fff;
+  padding: 16px 22px !important;
+  border-radius: 12px !important;
+  border: 1px solid #e8ebef !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border-left: 4px solid #999 !important;
+  font-weight: 500;
+}
+
+.att-stat strong {
+  font-size: 1.4rem !important;
+  font-family: 'Montserrat', sans-serif !important;
+  font-weight: 900 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.att-stat.green { border-left-color: #4CAF50 !important; }
+.att-stat.green strong { color: #2E7D32 !important; }
+.att-stat.orange { border-left-color: #F57C00 !important; }
+.att-stat.orange strong { color: #E65100 !important; }
+.att-stat.blue { border-left-color: #1565C0 !important; }
+.att-stat.blue strong { color: #1565C0 !important; }
+
+/* Scanner */
+.scanner-box {
+  background: #fff;
+  border-radius: 20px !important;
+  border: 1px solid #e8ebef !important;
+  padding: 30px !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+}
+
+/* Content Editor */
+.content-editor-card {
+  background: #fff !important;
+  border: 1px solid #e8ebef !important;
+  border-radius: 14px !important;
+  padding: 20px 22px !important;
+  transition: all 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.content-editor-card:hover {
+  border-color: #81C784 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(76,175,80,0.1);
+}
+
+.content-editor-header h4 {
+  color: #2E7D32 !important;
+  font-size: 1rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+}
+
+/* Modals */
+.modal-content {
+  border-radius: 20px !important;
+  box-shadow: 0 30px 100px rgba(0,0,0,0.35) !important;
+}
+
+.modal-large { max-width: 800px !important; }
+.modal-xl { max-width: 1000px !important; }
+
+.modal-header h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+
+.detail-grid { gap: 14px !important; }
+
+.detail-grid > div {
+  padding: 10px 14px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #f0f2f5;
+  font-size: 0.88rem;
+  color: #555;
+}
+
+.detail-grid strong {
+  color: #1a1a1a;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.detail-grid .full-width { grid-column: 1 / -1; }
+
+/* ============ TREASURY & ACCOUNTS ============ */
+.treasury-dashboard { margin-bottom: 24px; }
+
+.treasury-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.treasury-stat {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid #e8ebef;
+  border-radius: 16px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.treasury-stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+}
+
+.treasury-stat:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+}
+
+.treasury-stat.income::before { background: linear-gradient(90deg, #2E7D32, #4CAF50); }
+.treasury-stat.expense::before { background: linear-gradient(90deg, #C62828, #E53935); }
+.treasury-stat.balance::before { background: linear-gradient(90deg, #1565C0, #42A5F5); }
+.treasury-stat.gst::before { background: linear-gradient(90deg, #7B1FA2, #AB47BC); }
+.treasury-stat.tds::before { background: linear-gradient(90deg, #F57C00, #FF9800); }
+.treasury-stat.reg::before { background: linear-gradient(90deg, #00897B, #26A69A); }
+
+.treasury-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.treasury-stat-icon i { width: 24px; height: 24px; }
+
+.treasury-stat.income .treasury-stat-icon { background: linear-gradient(135deg, #E8F5E9, #C8E6C9); color: #2E7D32; }
+.treasury-stat.expense .treasury-stat-icon { background: linear-gradient(135deg, #FFEBEE, #FFCDD2); color: #C62828; }
+.treasury-stat.balance .treasury-stat-icon { background: linear-gradient(135deg, #E3F2FD, #BBDEFB); color: #1565C0; }
+.treasury-stat.gst .treasury-stat-icon { background: linear-gradient(135deg, #F3E5F5, #E1BEE7); color: #7B1FA2; }
+.treasury-stat.tds .treasury-stat-icon { background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100; }
+.treasury-stat.reg .treasury-stat-icon { background: linear-gradient(135deg, #E0F2F1, #B2DFDB); color: #00695C; }
+
+.treasury-stat-num {
+  display: block;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #1a1a1a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.treasury-stat-lbl {
+  display: block;
+  font-size: 0.72rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+/* Budget Variance */
+.budget-variance-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.budget-variance-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  background: #f8f9fa;
+  border-bottom: 2px solid #e0e4e8;
+}
+
+.budget-variance-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f2f5;
+  font-size: 0.88rem;
+  color: #333;
+}
+
+.budget-variance-table tr:hover {
+  background: rgba(76,175,80,0.04);
+}
+
+.variance-positive { color: #2E7D32; font-weight: 700; }
+.variance-negative { color: #C62828; font-weight: 700; }
+
+.variance-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #f0f2f5;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.variance-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s;
+}
+
+.variance-bar-fill.under { background: linear-gradient(90deg, #4CAF50, #81C784); }
+.variance-bar-fill.over { background: linear-gradient(90deg, #E53935, #EF5350); }
+
+.export-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+  text-align: left;
+}
+
+.export-item:hover {
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+  color: #1B5E20;
+}
+
+.export-item i { width: 18px; height: 18px; color: #4CAF50; }
+
+.trs-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.trs-form-grid .full-width { grid-column: 1 / -1; }
+
+.trs-amount-preview {
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+  border: 1px solid #A5D6A7;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  margin-top: 16px;
+}
+
+.trs-amount-preview .label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #2E7D32;
+  font-weight: 700;
+}
+
+.trs-amount-preview .value {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #1B5E20;
+  margin-top: 4px;
+}
+
+/* Command Palette */
+.cmd-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #f5f7fa;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  margin-bottom: 16px;
+  transition: all 0.2s;
+}
+
+.cmd-palette-search:focus-within {
+  border-color: #4CAF50;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(76,175,80,0.12);
+}
+
+.cmd-palette-search i { width: 20px; height: 20px; color: #999; }
+
+.cmd-palette-search input {
+  flex: 1;
+  border: none !important;
+  background: none !important;
+  padding: 0 !important;
+  font-size: 1rem !important;
+  color: #333 !important;
+  outline: none;
+}
+
+.cmd-results { max-height: 400px; overflow-y: auto; padding: 4px; }
+
+.cmd-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #555;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.cmd-item i { width: 18px; height: 18px; color: #999; }
+
+.cmd-item:hover, .cmd-item.active {
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+  color: #1B5E20;
+}
+
+.cmd-item.active i, .cmd-item:hover i { color: #2E7D32; }
+
+/* Notifications */
+.notif-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #f0f2f5;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.notif-item:hover {
+  background: #fff;
+  border-color: #81C784;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.notif-item.read { opacity: 0.6; }
+
+.notif-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notif-icon.success { background: #E8F5E9; color: #2E7D32; }
+.notif-icon.info { background: #E3F2FD; color: #1565C0; }
+.notif-icon.warning { background: #FFF3E0; color: #E65100; }
+.notif-icon.error { background: #FFEBEE; color: #C62828; }
+
+.notif-icon i { width: 20px; height: 20px; }
+
+.notif-content { flex: 1; min-width: 0; }
+
+.notif-title {
+  font-weight: 700;
+  color: #1a1a1a;
+  font-size: 0.92rem;
+  margin-bottom: 2px;
+}
+
+.notif-msg { color: #666; font-size: 0.85rem; line-height: 1.4; }
+.notif-time { font-size: 0.72rem; color: #999; margin-top: 4px; }
+
+.scan-result-card { padding: 24px !important; border-radius: 16px !important; animation: successPulse 0.5s; }
+
+@keyframes successPulse {
+  0% { transform: scale(0.9); opacity: 0; }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.text-red { color: #C62828 !important; font-weight: 700; }
+.text-orange { color: #E65100 !important; font-weight: 700; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-topbar { padding: 12px 16px !important; }
+  .admin-topbar h2 { font-size: 0.95rem !important; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .stat-box { padding: 14px !important; }
+  .stat-box .num { font-size: 1.3rem !important; }
+  .dashboard-grid { grid-template-columns: 1fr !important; }
+  .btn-icon { width: 36px !important; height: 36px !important; }
+  .btn-icon i { width: 16px !important; height: 16px !important; }
+  .view-header { padding: 14px !important; }
+  .modal-large, .modal-xl { max-width: 100% !important; }
+  .treasury-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .treasury-stat { padding: 16px; }
+  .treasury-stat-num { font-size: 1.2rem; }
+  .trs-form-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr !important; }
+  .att-summary { flex-direction: column; }
+  .att-stat { width: 100%; }
+  .treasury-stat-grid { grid-template-columns: 1fr; }
+}
+
+/* Scrollbar */
+.admin-content::-webkit-scrollbar,
+.sidebar-nav::-webkit-scrollbar,
+.cmd-results::-webkit-scrollbar { width: 8px; height: 8px; }
+
+.admin-content::-webkit-scrollbar-track,
+.sidebar-nav::-webkit-scrollbar-track,
+.cmd-results::-webkit-scrollbar-track { background: transparent; }
+
+.admin-content::-webkit-scrollbar-thumb,
+.cmd-results::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #C8E6C9, #A5D6A7);
+  border-radius: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(76,175,80,0.3);
+  border-radius: 4px;
+}
+</style>
+</head>
+<body class="admin-body">
+
+<!-- ================= LOGIN SCREEN ================= -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-header">
+      <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" alt="Altitude" class="login-logo" />
+      <h1>Admin Console</h1>
+      <p>ALTITUDE 2026 · Rotaract District 3206</p>
+    </div>
+    <form id="loginForm" class="login-form">
+      <div class="form-group">
+        <label><i data-lucide="mail"></i> Email</label>
+        <input type="email" id="loginEmail" required autocomplete="email" placeholder="admin@example.com" />
+      </div>
+      <div class="form-group">
+        <label><i data-lucide="lock"></i> Password</label>
+        <div class="password-field">
+          <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••" />
+          <button type="button" class="password-toggle" onclick="togglePassword()"><i data-lucide="eye" id="pwToggleIcon"></i></button>
+        </div>
+      </div>
+      <div id="loginError" class="login-error" style="display:none;"></div>
+      <button type="submit" class="btn btn-primary btn-block btn-large" id="loginBtn">
+        <i data-lucide="log-in"></i> Sign In Securely
+      </button>
+    </form>
+    <a href="index.html" class="back-to-site"><i data-lucide="arrow-left"></i> Back to Website</a>
+  </div>
+</div>
+
+<!-- ================= ADMIN APP ================= -->
+<div id="adminApp" class="admin-app" style="display:none;">
+
+  <!-- SIDEBAR -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-header">
+      <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_WhiteAsset_2_2x-8.png" alt="Altitude" />
+      <button class="sidebar-close" id="sidebarClose"><i data-lucide="x"></i></button>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="sidebar-link active" data-view="dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+      <a href="#" class="sidebar-link" data-view="clubReg"><i data-lucide="users-round"></i><span>Club Registrations</span></a>
+      <a href="#" class="sidebar-link" data-view="dcReg"><i data-lucide="crown"></i><span>District Council</span></a>
+      <a href="#" class="sidebar-link" data-view="members"><i data-lucide="user-check"></i><span>All Members</span></a>
+      <a href="#" class="sidebar-link" data-view="clubs"><i data-lucide="building-2"></i><span>Clubs Management</span></a>
+      <a href="#" class="sidebar-link" data-view="attendance"><i data-lucide="clipboard-check"></i><span>Attendance</span></a>
+      <a href="#" class="sidebar-link" data-view="scanner"><i data-lucide="scan-line"></i><span>QR Scanner</span></a>
+
+      <div class="sidebar-divider">Finance</div>
+      <a href="#" class="sidebar-link" data-view="treasury"><i data-lucide="indian-rupee"></i><span>Treasury & Accounts</span></a>
+
+      <div class="sidebar-divider">Content Management</div>
+      <a href="#" class="sidebar-link" data-view="siteContent"><i data-lucide="file-text"></i><span>Site Content</span></a>
+      <a href="#" class="sidebar-link" data-view="agenda"><i data-lucide="calendar-clock"></i><span>Agenda</span></a>
+      <a href="#" class="sidebar-link" data-view="colourHunt"><i data-lucide="palette"></i><span>Colour Hunt</span></a>
+      <a href="#" class="sidebar-link" data-view="treasure"><i data-lucide="map"></i><span>Treasure Hunt</span></a>
+      <a href="#" class="sidebar-link" data-view="leaders"><i data-lucide="user-round-cog"></i><span>Group Leaders</span></a>
+      <a href="#" class="sidebar-link" data-view="food"><i data-lucide="utensils"></i><span>Food Menu</span></a>
+      <a href="#" class="sidebar-link" data-view="announcements"><i data-lucide="megaphone"></i><span>Announcements</span></a>
+      <a href="#" class="sidebar-link" data-view="faqs"><i data-lucide="help-circle"></i><span>FAQs</span></a>
+
+      <div class="sidebar-divider">System</div>
+      <a href="#" class="sidebar-link" data-view="admins"><i data-lucide="shield-check"></i><span>Admin Users</span></a>
+      <a href="#" class="sidebar-link" data-view="activity"><i data-lucide="activity"></i><span>Activity Log</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <div class="admin-avatar"><i data-lucide="user"></i></div>
+        <div>
+          <div class="admin-name" id="adminName">Admin</div>
+          <div class="admin-role" id="adminRole">Super Admin</div>
+        </div>
+      </div>
+      <button class="btn-logout" id="logoutBtn" title="Sign Out"><i data-lucide="log-out"></i></button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="admin-main">
+    <header class="admin-topbar">
+      <button class="menu-toggle" id="menuToggle"><i data-lucide="menu"></i></button>
+      <h2 id="viewTitle">Dashboard Overview</h2>
+      <div class="topbar-actions">
+        <button class="btn-icon" title="Refresh" onclick="location.reload()"><i data-lucide="refresh-cw"></i></button>
+        <a href="index.html" class="btn-icon" title="View Website" target="_blank"><i data-lucide="external-link"></i></a>
+        <a href="verify.html" class="btn-icon" title="Verify Portal" target="_blank"><i data-lucide="scan-line"></i></a>
+      </div>
+    </header>
+
+    <div class="admin-content">
+
+      <!-- DASHBOARD -->
+      <section class="view active" id="view-dashboard">
+        <div class="stats-grid">
+          <div class="stat-box green"><i data-lucide="user-check"></i><div><span class="num" id="dashApproved">0</span><span class="lbl">Approved</span></div></div>
+          <div class="stat-box yellow"><i data-lucide="clock"></i><div><span class="num" id="dashPending">0</span><span class="lbl">Pending</span></div></div>
+          <div class="stat-box red"><i data-lucide="x-circle"></i><div><span class="num" id="dashRejected">0</span><span class="lbl">Rejected</span></div></div>
+          <div class="stat-box blue"><i data-lucide="clipboard-check"></i><div><span class="num" id="dashAttended">0</span><span class="lbl">Attended</span></div></div>
+          <div class="stat-box purple"><i data-lucide="crown"></i><div><span class="num" id="dashDcApproved">0</span><span class="lbl">DC Approved</span></div></div>
+          <div class="stat-box teal"><i data-lucide="building-2"></i><div><span class="num" id="dashClubs">0</span><span class="lbl">Clubs Joined</span></div></div>
+          <div class="stat-box orange"><i data-lucide="leaf"></i><div><span class="num" id="dashVeg">0</span><span class="lbl">Veg Meals</span></div></div>
+          <div class="stat-box brown"><i data-lucide="drumstick"></i><div><span class="num" id="dashNonVeg">0</span><span class="lbl">Non-Veg</span></div></div>
+          <div class="stat-box gold"><i data-lucide="award"></i><div><span class="num" id="dashBoard">0</span><span class="lbl">Board Members</span></div></div>
+          <div class="stat-box green-dark"><i data-lucide="indian-rupee"></i><div><span class="num" id="dashRevenue">₹0</span><span class="lbl">Total Revenue</span></div></div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dash-card">
+            <h3><i data-lucide="pie-chart"></i> Group-wise Distribution</h3>
+            <div id="groupDistribution" class="group-dist"></div>
+          </div>
+          <div class="dash-card">
+            <h3><i data-lucide="activity"></i> Recent Activity Feed</h3>
+            <div id="recentActivity" class="recent-activity"></div>
+          </div>
+        </div>
+
+        <div class="dash-card">
+          <div class="card-header">
+            <h3><i data-lucide="trending-up"></i> Top Registered Clubs</h3>
+          </div>
+          <div id="topClubsList" class="top-clubs"></div>
+        </div>
+      </section>
+
+      <!-- CLUB REGISTRATIONS -->
+      <section class="view" id="view-clubReg">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="clubRegSearch" placeholder="Search club name, registrant, transaction ID..." class="search-input" />
+            <select id="clubRegStatusFilter" class="filter-select">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button class="btn btn-primary" id="exportClubReg"><i data-lucide="download"></i> Export</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="clubRegTable">
+            <thead>
+              <tr>
+                <th>Reg ID</th><th>Club</th><th>Registrant</th><th>Role</th><th>Members</th><th>Amount</th><th>Txn ID</th><th>Status</th><th>Date</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- DC REGISTRATIONS -->
+      <section class="view" id="view-dcReg">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="dcRegSearch" placeholder="Search name, RI ID, portfolio..." class="search-input" />
+            <select id="dcRegStatusFilter" class="filter-select">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button class="btn btn-primary" id="exportDcReg"><i data-lucide="download"></i> Export</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="dcRegTable">
+            <thead>
+              <tr>
+                <th>Reg ID</th><th>Name</th><th>RI ID</th><th>Portfolio</th><th>Contact</th><th>Food</th><th>Txn ID</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MEMBERS -->
+      <section class="view" id="view-members">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="membersSearch" placeholder="Search member, RI ID, club..." class="search-input" />
+            <select id="membersStatusFilter" class="filter-select">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select id="membersFoodFilter" class="filter-select">
+              <option value="">All Food</option>
+              <option value="VEG">Vegetarian</option>
+              <option value="NON-VEG">Non-Veg</option>
+            </select>
+            <select id="membersGroupFilter" class="filter-select">
+              <option value="">All Groups</option>
+              <option value="1">Group 1</option>
+              <option value="2">Group 2</option>
+              <option value="3">Group 3</option>
+              <option value="4">Group 4</option>
+            </select>
+            <button class="btn btn-primary" id="exportMembers"><i data-lucide="download"></i> Export</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="membersTable">
+            <thead>
+              <tr>
+                <th>Code</th><th>Name</th><th>RI ID</th><th>Club</th><th>Group</th><th>Food</th><th>Board</th><th>Status</th><th>Attended</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- CLUBS MANAGEMENT -->
+      <section class="view" id="view-clubs">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="clubsSearch" placeholder="Search clubs..." class="search-input" />
+            <select id="clubsGroupFilter" class="filter-select">
+              <option value="">All Groups</option>
+              <option value="1">Group 1</option>
+              <option value="2">Group 2</option>
+              <option value="3">Group 3</option>
+              <option value="4">Group 4</option>
+            </select>
+            <button class="btn btn-primary" id="bulkUpdateLimit"><i data-lucide="edit-3"></i> Bulk Update</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="clubsTable">
+            <thead>
+              <tr><th>Club Name</th><th>Group</th><th>Max Limit</th><th>Current</th><th>Available</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ATTENDANCE -->
+      <section class="view" id="view-attendance">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="attSearch" placeholder="Search attendee..." class="search-input" />
+            <select id="attFilter" class="filter-select">
+              <option value="">All</option>
+              <option value="attended">✓ Attended</option>
+              <option value="not-attended">✗ Not Attended</option>
+            </select>
+            <button class="btn btn-primary" id="exportAttendance"><i data-lucide="download"></i> Export Report</button>
+          </div>
+        </div>
+        <div class="att-summary" id="attSummary"></div>
+        <div class="table-container">
+          <table class="admin-table" id="attendanceTable">
+            <thead>
+              <tr><th>Code</th><th>Name</th><th>RI ID</th><th>Club</th><th>Type</th><th>Status</th><th>Checked At</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- QR SCANNER -->
+      <section class="view" id="view-scanner">
+        <div class="scanner-container">
+          <div class="scanner-box">
+            <h3><i data-lucide="scan-line"></i> Attendance QR Scanner</h3>
+            <p>Scan participant QR codes to mark attendance in real-time</p>
+            <div id="qrReader" style="width: 100%; max-width: 500px; margin: 20px auto;"></div>
+            <div class="scanner-controls">
+              <button class="btn btn-primary" id="startScanBtn"><i data-lucide="camera"></i> Start Scanning</button>
+              <button class="btn btn-secondary" id="stopScanBtn" style="display:none;"><i data-lucide="stop-circle"></i> Stop</button>
+            </div>
+          </div>
+          <div class="scan-result" id="scanResult"></div>
+        </div>
+      </section>
+
+      <!-- TREASURY & ACCOUNTS -->
+      <section class="view" id="view-treasury">
+        <!-- Financial Dashboard -->
+        <div class="treasury-dashboard">
+          <div class="treasury-stat-grid">
+            <div class="treasury-stat income">
+              <div class="treasury-stat-icon"><i data-lucide="trending-up"></i></div>
+              <div><span class="treasury-stat-num" id="trsIncome">₹0</span><span class="treasury-stat-lbl">Total Income</span></div>
+            </div>
+            <div class="treasury-stat expense">
+              <div class="treasury-stat-icon"><i data-lucide="trending-down"></i></div>
+              <div><span class="treasury-stat-num" id="trsExpense">₹0</span><span class="treasury-stat-lbl">Total Expense</span></div>
+            </div>
+            <div class="treasury-stat balance">
+              <div class="treasury-stat-icon"><i data-lucide="wallet"></i></div>
+              <div><span class="treasury-stat-num" id="trsBalance">₹0</span><span class="treasury-stat-lbl">Net Balance</span></div>
+            </div>
+            <div class="treasury-stat gst">
+              <div class="treasury-stat-icon"><i data-lucide="receipt"></i></div>
+              <div><span class="treasury-stat-num" id="trsGst">₹0</span><span class="treasury-stat-lbl">GST Collected</span></div>
+            </div>
+            <div class="treasury-stat tds">
+              <div class="treasury-stat-icon"><i data-lucide="landmark"></i></div>
+              <div><span class="treasury-stat-num" id="trsTds">₹0</span><span class="treasury-stat-lbl">TDS Deducted</span></div>
+            </div>
+            <div class="treasury-stat reg">
+              <div class="treasury-stat-icon"><i data-lucide="users"></i></div>
+              <div><span class="treasury-stat-num" id="trsRegRev">₹0</span><span class="treasury-stat-lbl">Registration Revenue</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions Bar -->
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="trsSearch" placeholder="Search transactions..." class="search-input" />
+            <select id="trsCategoryFilter" class="filter-select">
+              <option value="">All Categories</option>
+              <option value="INCOME">Income</option>
+              <option value="EXPENSE">Expense</option>
+              <option value="ADJUSTMENT">Adjustment</option>
+            </select>
+            <select id="trsVerifiedFilter" class="filter-select">
+              <option value="">All Status</option>
+              <option value="true">Verified</option>
+              <option value="false">Unverified</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="addTransactionBtn"><i data-lucide="plus"></i> New Transaction</button>
+            <button class="btn btn-secondary" id="syncRegRevenue"><i data-lucide="refresh-cw"></i> Sync Registrations</button>
+            <div class="dropdown-wrap" style="position:relative;">
+              <button class="btn btn-secondary" id="exportTreasuryBtn"><i data-lucide="download"></i> Export Reports</button>
+              <div class="export-dropdown" id="exportDropdown" style="display:none;position:absolute;top:100%;right:0;background:#fff;border:1px solid #e0e4e8;border-radius:12px;padding:8px;box-shadow:0 12px 30px rgba(0,0,0,0.12);z-index:100;min-width:240px;margin-top:6px;">
+                <button class="export-item" onclick="window.exportLedger()"><i data-lucide="file-spreadsheet"></i> Full Ledger (Excel)</button>
+                <button class="export-item" onclick="window.exportIncomeStatement()"><i data-lucide="bar-chart-3"></i> Income Statement</button>
+                <button class="export-item" onclick="window.exportExpenseReport()"><i data-lucide="pie-chart"></i> Expense Report</button>
+                <button class="export-item" onclick="window.exportBudgetVariance()"><i data-lucide="git-compare"></i> Budget vs Actual</button>
+                <button class="export-item" onclick="window.exportCashFlow()"><i data-lucide="activity"></i> Cash Flow Statement</button>
+                <button class="export-item" onclick="window.exportGSTReport()"><i data-lucide="receipt"></i> GST Summary</button>
+                <button class="export-item" onclick="window.exportTDSReport()"><i data-lucide="landmark"></i> TDS Summary</button>
+                <button class="export-item" onclick="window.exportReconciliation()"><i data-lucide="check-check"></i> Bank Reconciliation</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Budget vs Actual -->
+        <div class="dash-card" style="margin-bottom:20px;">
+          <h3><i data-lucide="git-compare"></i> Budget vs Actual</h3>
+          <div id="budgetVarianceTable"></div>
+        </div>
+
+        <!-- Transactions Table -->
+        <div class="table-container">
+          <table class="admin-table" id="treasuryTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>GST</th>
+                <th>Net</th>
+                <th>Method</th>
+                <th>Verified</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SITE CONTENT -->
+      <section class="view" id="view-siteContent">
+        <div id="siteContentList" class="content-editor-list"></div>
+      </section>
+
+      <!-- AGENDA -->
+      <section class="view" id="view-agenda">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addAgendaBtn"><i data-lucide="plus"></i> Add Agenda Item</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="agendaTable">
+            <thead><tr><th>Day</th><th>Time</th><th>Title</th><th>Location</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- COLOUR HUNT -->
+      <section class="view" id="view-colourHunt">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addColourHuntBtn"><i data-lucide="plus"></i> Add Challenge</button>
+        </div>
+        <div id="colourHuntList" class="editor-list"></div>
+      </section>
+
+      <!-- TREASURE HUNT -->
+      <section class="view" id="view-treasure">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addTreasureBtn"><i data-lucide="plus"></i> Add Clue</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="treasureTable">
+            <thead><tr><th>#</th><th>Title</th><th>Group</th><th>Clue</th><th>Revealed</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- LEADERS -->
+      <section class="view" id="view-leaders">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addLeaderBtn"><i data-lucide="plus"></i> Add Leader</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="leadersTable">
+            <thead><tr><th>Group</th><th>Name</th><th>Role</th><th>Club</th><th>Contact</th><th>Primary</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- FOOD -->
+      <section class="view" id="view-food">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addFoodBtn"><i data-lucide="plus"></i> Add Menu Item</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="foodTable">
+            <thead><tr><th>Day</th><th>Meal</th><th>Type</th><th>Item</th><th>Description</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ANNOUNCEMENTS -->
+      <section class="view" id="view-announcements">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addAnnouncementBtn"><i data-lucide="plus"></i> New Announcement</button>
+        </div>
+        <div id="announcementsList" class="editor-list"></div>
+      </section>
+
+      <!-- FAQS -->
+      <section class="view" id="view-faqs">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addFaqBtn"><i data-lucide="plus"></i> Add FAQ</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="faqTable">
+            <thead><tr><th>Question</th><th>Category</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ADMIN USERS -->
+      <section class="view" id="view-admins">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addAdminBtn"><i data-lucide="user-plus"></i> Add Admin</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="adminsTable">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ACTIVITY -->
+      <section class="view" id="view-activity">
+        <div class="table-container">
+          <table class="admin-table" id="activityTable">
+            <thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th><th>Description</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ================= UNIVERSAL MODAL ================= -->
+<div id="adminModal" class="modal">
+  <div class="modal-content modal-large">
+    <div class="modal-header">
+      <h3 id="modalTitle">Modal Title</h3>
+      <button class="modal-close" onclick="closeModal()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- ================= TOAST ================= -->
+<div id="toast" class="toast">
+  <i data-lucide="check-circle" class="toast-icon"></i>
+  <span id="toastMessage"></span>
+</div>
+
+<!-- ================= LOADING ================= -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-spinner"></div>
+  <p id="loadingText">Loading...</p>
+</div>
+
+<!-- ================= CONFIRM DIALOG ================= -->
+<div id="confirmDialog" class="modal">
+  <div class="modal-content">
+    <div class="modal-body">
+      <div class="confirm-icon"><i data-lucide="alert-triangle"></i></div>
+      <h3 id="confirmTitle">Are you sure?</h3>
+      <p id="confirmMessage">This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirmActionBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/admin.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+});
+
+function togglePassword() {
+  const input = document.getElementById('loginPassword');
+  const icon = document.getElementById('pwToggleIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.setAttribute('data-lucide', 'eye-off');
+  } else {
+    input.type = 'password';
+    icon.setAttribute('data-lucide', 'eye');
+  }
+  lucide.createIcons();
+}
+
+function closeModal() {
+  document.getElementById('adminModal').classList.remove('active');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmDialog').classList.remove('active');
+}
+</script>
+</body>
+</html>
