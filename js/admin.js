@@ -1,7 +1,7 @@
 /**
- * ALTITUDE 2026 — QUANTUM ADMIN CONSOLE v6.0
- * Futuristic Enterprise-Grade Management System
- * Real-time · AI-Insights · Bulk Ops · Command Palette · Analytics · Treasury
+ * ALTITUDE 2026 — QUANTUM ADMIN CONSOLE v7.0
+ * Enterprise Management System with Treasury Module
+ * Real-time sync · AI Insights · Bulk Ops · Command Palette · Advanced Analytics
  */
 
 (function () {
@@ -39,7 +39,6 @@
   let isScanning = false;
   let autoRefreshTimer = null;
   let realtimeChannels = [];
-  let commandPaletteOpen = false;
   let notifications = [];
 
   window._cache = {
@@ -177,57 +176,6 @@
   }
   window.copyToClipboard = copyToClipboard;
 
-  // ==================== NOTIFICATION SYSTEM ====================
-  function addNotification(title, message, type = "info") {
-    notifications.unshift({
-      id: Date.now(),
-      title, message, type,
-      timestamp: new Date(),
-      read: false
-    });
-    if (notifications.length > 20) notifications.pop();
-    updateNotificationBadge();
-  }
-
-  function updateNotificationBadge() {
-    const badge = $("#notifBadge");
-    if (badge) {
-      const unread = notifications.filter(n => !n.read).length;
-      badge.textContent = unread;
-      badge.style.display = unread > 0 ? "flex" : "none";
-    }
-  }
-
-  window.showNotifications = function () {
-    const html = notifications.length
-      ? notifications.map(n =>
-        '<div class="notif-item ' + (n.read ? "read" : "") + '" onclick="markNotifRead(' + n.id + ')">' +
-          '<div class="notif-icon ' + n.type + '"><i data-lucide="' + (n.type === "success" ? "check-circle" : n.type === "warning" ? "alert-triangle" : "info") + '"></i></div>' +
-          '<div class="notif-content">' +
-            '<div class="notif-title">' + esc(n.title) + '</div>' +
-            '<div class="notif-msg">' + esc(n.message) + '</div>' +
-            '<div class="notif-time">' + timeAgo(n.timestamp) + '</div>' +
-          '</div>' +
-        '</div>'
-      ).join("")
-      : '<div style="text-align:center;padding:var(--space-2xl);color:var(--gray-400);"><i data-lucide="bell-off" style="width:40px;height:40px;margin-bottom:var(--space-sm);"></i><p>No notifications yet</p></div>';
-
-    openModal("Notifications", html, '<button class="btn btn-secondary" onclick="clearAllNotifs()">Clear All</button>');
-  };
-
-  window.markNotifRead = function (id) {
-    const n = notifications.find(x => x.id === id);
-    if (n) n.read = true;
-    updateNotificationBadge();
-  };
-
-  window.clearAllNotifs = function () {
-    notifications = [];
-    updateNotificationBadge();
-    closeModal();
-    showToast("Notifications cleared");
-  };
-
   // ==================== EMAIL DISPATCH ====================
   async function sendApprovalEmail(member, clubName) {
     if (typeof emailjs === "undefined" || !member.email) return false;
@@ -315,7 +263,6 @@
       hideLoading();
       showDashboard();
       showToast("Welcome back, " + currentAdmin.full_name);
-      addNotification("Login Successful", "You have logged in as " + currentAdmin.role, "success");
     } catch (err) {
       hideLoading();
       errEl.textContent = err.message;
@@ -354,7 +301,6 @@
     navigateTo("dashboard");
     startAutoRefresh();
     initRealtimeSubscriptions();
-    injectAdvancedUI();
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
 
@@ -366,197 +312,25 @@
     location.reload();
   }
 
-  // ==================== ADVANCED UI INJECTION ====================
-  function injectAdvancedUI() {
-    const topbarActions = $(".topbar-actions");
-    if (topbarActions && !$("#notifBell")) {
-      const html =
-        '<button class="btn-icon" id="cmdPaletteBtn" title="Command Palette (Ctrl+K)">' +
-          '<i data-lucide="command"></i>' +
-        '</button>' +
-        '<button class="btn-icon" id="notifBell" title="Notifications" onclick="showNotifications()" style="position:relative;">' +
-          '<i data-lucide="bell"></i>' +
-          '<span id="notifBadge" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;padding:2px 5px;border-radius:8px;display:none;min-width:16px;justify-content:center;align-items:center;">0</span>' +
-        '</button>';
-      topbarActions.insertAdjacentHTML("afterbegin", html);
-      $("#cmdPaletteBtn")?.addEventListener("click", openCommandPalette);
-      if (typeof lucide !== "undefined") lucide.createIcons();
-    }
-  }
-
-  // ==================== COMMAND PALETTE (Ctrl+K) ====================
-  function openCommandPalette() {
-    if (commandPaletteOpen) return;
-    commandPaletteOpen = true;
-
-    const commands = [
-      { name: "Go to Dashboard", icon: "layout-dashboard", action: () => navigateTo("dashboard") },
-      { name: "View Club Registrations", icon: "users-round", action: () => navigateTo("clubReg") },
-      { name: "View District Council", icon: "crown", action: () => navigateTo("dcReg") },
-      { name: "View All Members", icon: "user-check", action: () => navigateTo("members") },
-      { name: "Manage Clubs", icon: "building-2", action: () => navigateTo("clubs") },
-      { name: "View Attendance", icon: "clipboard-check", action: () => navigateTo("attendance") },
-      { name: "Open QR Scanner", icon: "scan-line", action: () => navigateTo("scanner") },
-      { name: "Treasury & Accounts", icon: "indian-rupee", action: () => navigateTo("treasury") },
-      { name: "Edit Site Content", icon: "file-text", action: () => navigateTo("siteContent") },
-      { name: "Manage Agenda", icon: "calendar-clock", action: () => navigateTo("agenda") },
-      { name: "Manage Announcements", icon: "megaphone", action: () => navigateTo("announcements") },
-      { name: "View Activity Log", icon: "activity", action: () => navigateTo("activity") },
-      { name: "Export All Members", icon: "download", action: () => $("#exportMembers")?.click() },
-      { name: "Export Full Ledger", icon: "file-spreadsheet", action: () => window.exportLedger && window.exportLedger() },
-      { name: "Sync Registration Revenue", icon: "refresh-cw", action: () => $("#syncRegRevenue")?.click() },
-      { name: "Refresh Dashboard", icon: "refresh-cw", action: () => loadDashboard() },
-      { name: "Logout", icon: "log-out", action: logout }
-    ];
-
-    const html =
-      '<div class="cmd-palette-search"><i data-lucide="search"></i><input type="text" id="cmdSearch" placeholder="Type a command..." autocomplete="off" /></div>' +
-      '<div id="cmdResults" class="cmd-results">' +
-        commands.map((c, i) =>
-          '<div class="cmd-item ' + (i === 0 ? "active" : "") + '" data-idx="' + i + '"><i data-lucide="' + c.icon + '"></i><span>' + c.name + '</span></div>'
-        ).join("") +
-      '</div>';
-
-    openModal("Command Palette", html, '<small style="color:var(--gray-400);">Use ↑↓ to navigate, Enter to select, Esc to close</small>');
-
-    setTimeout(() => {
-      const search = $("#cmdSearch");
-      if (search) {
-        search.focus();
-        search.addEventListener("input", () => filterCommands(commands));
-        search.addEventListener("keydown", (e) => handleCmdKeydown(e, commands));
-      }
-      $$(".cmd-item").forEach(item => {
-        item.addEventListener("click", () => {
-          const idx = parseInt(item.dataset.idx);
-          if (commands[idx]) { commands[idx].action(); closeCmdPalette(); }
-        });
-      });
-    }, 100);
-  }
-
-  function filterCommands(commands) {
-    const q = $("#cmdSearch").value.toLowerCase();
-    const filtered = q ? commands.filter(c => c.name.toLowerCase().includes(q)) : commands;
-    const results = $("#cmdResults");
-    if (results) {
-      results.innerHTML = filtered.length
-        ? filtered.map((c, i) => '<div class="cmd-item ' + (i === 0 ? "active" : "") + '" data-idx="' + commands.indexOf(c) + '"><i data-lucide="' + c.icon + '"></i><span>' + c.name + '</span></div>').join("")
-        : '<div style="text-align:center;padding:var(--space-lg);color:var(--gray-400);">No commands found</div>';
-      if (typeof lucide !== "undefined") lucide.createIcons();
-      $$(".cmd-item").forEach(item => {
-        item.addEventListener("click", () => {
-          const idx = parseInt(item.dataset.idx);
-          if (commands[idx]) { commands[idx].action(); closeCmdPalette(); }
-        });
-      });
-    }
-  }
-
-  function handleCmdKeydown(e, commands) {
-    const items = $$(".cmd-item");
-    let activeIdx = Array.from(items).findIndex(i => i.classList.contains("active"));
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      items[activeIdx]?.classList.remove("active");
-      activeIdx = (activeIdx + 1) % items.length;
-      items[activeIdx]?.classList.add("active");
-      items[activeIdx]?.scrollIntoView({ block: "nearest" });
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      items[activeIdx]?.classList.remove("active");
-      activeIdx = (activeIdx - 1 + items.length) % items.length;
-      items[activeIdx]?.classList.add("active");
-      items[activeIdx]?.scrollIntoView({ block: "nearest" });
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      const item = items[activeIdx];
-      if (item) {
-        const idx = parseInt(item.dataset.idx);
-        if (commands[idx]) { commands[idx].action(); closeCmdPalette(); }
-      }
-    } else if (e.key === "Escape") {
-      closeCmdPalette();
-    }
-  }
-
-  function closeCmdPalette() {
-    commandPaletteOpen = false;
-    closeModal();
-  }
-
-  // ==================== KEYBOARD SHORTCUTS ====================
-  function initKeyboardShortcuts() {
-    document.addEventListener("keydown", (e) => {
-      if ($("#loginScreen").style.display !== "none") return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        openCommandPalette();
-      }
-      else if ((e.ctrlKey || e.metaKey) && e.key === "/") {
-        e.preventDefault();
-        const searchInputs = ["membersSearch", "clubRegSearch", "dcRegSearch", "clubsSearch", "trsSearch"];
-        for (const id of searchInputs) {
-          const el = document.getElementById(id);
-          if (el && el.offsetParent !== null) { el.focus(); break; }
-        }
-      }
-      else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "R") {
-        e.preventDefault();
-        const view = $(".view.active")?.id?.replace("view-", "");
-        if (view) navigateTo(view);
-      }
-      else if (e.key === "Escape") {
-        const modal = $("#adminModal");
-        const confirm = $("#confirmDialog");
-        if (modal?.classList.contains("active")) closeModal();
-        else if (confirm?.classList.contains("active")) closeConfirm();
-      }
-    });
-  }
-
-  // ==================== REALTIME SUBSCRIPTIONS ====================
+  // ==================== REALTIME ====================
   function initRealtimeSubscriptions() {
     if (!REALTIME_ENABLED) return;
     const db = getDb();
     if (!db) return;
-
-    const regChannel = db
-      .channel("registrations-changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "registrations" }, (payload) => {
-        addNotification("New Registration!", "A new club registration has arrived", "info");
-        showToast("🔔 New registration received!", "success");
-        if ($(".view.active")?.id === "view-dashboard") loadDashboard();
-        if ($(".view.active")?.id === "view-clubReg") loadClubRegistrations();
-      })
-      .subscribe();
-
-    const dcChannel = db
-      .channel("dc-changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "district_council_registrations" }, () => {
-        addNotification("New DC Registration!", "A new district council registration has arrived", "info");
-        showToast("🔔 New DC registration!", "success");
-        if ($(".view.active")?.id === "view-dcReg") loadDcRegistrations();
-      })
-      .subscribe();
-
-    const trsChannel = db
-      .channel("treasury-changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "treasury_transactions" }, () => {
-        addNotification("Treasury Update", "A new transaction was recorded", "info");
-        if ($(".view.active")?.id === "view-treasury") loadTreasury();
-      })
-      .subscribe();
-
-    realtimeChannels.push(regChannel, dcChannel, trsChannel);
+    try {
+      const regChannel = db.channel("registrations-changes")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "registrations" }, () => {
+          showToast("🔔 New registration received!", "success");
+          if ($(".view.active")?.id === "view-dashboard") loadDashboard();
+          if ($(".view.active")?.id === "view-clubReg") loadClubRegistrations();
+        }).subscribe();
+      realtimeChannels.push(regChannel);
+    } catch (e) {}
   }
 
   function stopRealtimeSubscriptions() {
     const db = getDb();
-    realtimeChannels.forEach(ch => {
-      try { db?.removeChannel(ch); } catch {}
-    });
+    realtimeChannels.forEach(ch => { try { db?.removeChannel(ch); } catch {} });
     realtimeChannels = [];
   }
 
@@ -566,7 +340,7 @@
     autoRefreshTimer = setInterval(() => {
       const activeView = $(".view.active")?.id?.replace("view-", "");
       if (activeView === "dashboard") loadDashboard();
-      if (activeView === "attendance") loadAttendance();
+      if (activeView === "treasury") loadTreasury();
     }, AUTO_REFRESH_INTERVAL);
   }
 
@@ -584,15 +358,16 @@
     if (link) link.classList.add("active");
 
     const titles = {
-      dashboard: "Dashboard Overview",
+      dashboard: "Dashboard",
       clubReg: "Club Registrations",
       dcReg: "District Council",
       members: "All Members",
       clubs: "Clubs Management",
-      attendance: "Attendance Report",
+      attendance: "Attendance",
       scanner: "QR Scanner",
-      siteContent: "Site Content Editor",
-      agenda: "Agenda Management",
+      treasury: "Treasury & Accounts",
+      siteContent: "Site Content",
+      agenda: "Agenda",
       colourHunt: "Colour Hunt",
       treasure: "Treasure Hunt",
       leaders: "Group Leaders",
@@ -600,8 +375,7 @@
       announcements: "Announcements",
       faqs: "FAQs",
       admins: "Admin Users",
-      activity: "Activity Log",
-      treasury: "Treasury & Accounts"
+      activity: "Activity Log"
     };
     $("#viewTitle").textContent = titles[view] || "Dashboard";
 
@@ -612,6 +386,7 @@
       members: loadAllMembers,
       clubs: loadClubsManagement,
       attendance: loadAttendance,
+      treasury: loadTreasury,
       siteContent: loadSiteContentEditor,
       agenda: loadAgendaEditor,
       colourHunt: loadColourHuntEditor,
@@ -621,12 +396,9 @@
       announcements: loadAnnouncementsEditor,
       faqs: loadFaqsEditor,
       admins: loadAdminsEditor,
-      activity: loadActivityLog,
-      treasury: loadTreasury
+      activity: loadActivityLog
     };
     if (loaders[view]) loaders[view]();
-
-    $("#adminSidebar").classList.remove("open");
   }
 
   // ==================== DASHBOARD ====================
@@ -636,7 +408,6 @@
     try {
       const { data } = await db.from("dashboard_stats").select("*").single();
       if (!data) return;
-
       window._cache.stats = data;
 
       const animateNum = (id, val) => {
@@ -669,43 +440,7 @@
       loadGroupDistribution();
       loadTopClubs();
       loadRecentActivity();
-      loadAIInsights(data);
     } catch (err) { console.error(err); }
-  }
-
-  // ==================== AI INSIGHTS ====================
-  function loadAIInsights(stats) {
-    const container = $("#recentActivity");
-    if (!container) return;
-
-    const insights = [];
-    const totalReg = stats.total_approved + stats.total_pending;
-    const approvalRate = totalReg > 0 ? Math.round((stats.total_approved / totalReg) * 100) : 0;
-    const vegRatio = stats.total_approved > 0 ? Math.round((stats.total_veg / stats.total_approved) * 100) : 0;
-    const attendanceRate = stats.total_approved > 0 ? Math.round((stats.total_attended / stats.total_approved) * 100) : 0;
-
-    if (stats.total_pending > 20) {
-      insights.push({ icon: "alert-triangle", color: "orange", text: "⚠️ " + stats.total_pending + " pending registrations need review" });
-    }
-    if (approvalRate > 90 && totalReg > 10) {
-      insights.push({ icon: "trending-up", color: "green", text: "📈 Excellent " + approvalRate + "% approval rate" });
-    }
-    if (vegRatio > 60) {
-      insights.push({ icon: "leaf", color: "green", text: "🌱 " + vegRatio + "% prefer vegetarian food" });
-    }
-    if (stats.clubs_registered >= 50) {
-      insights.push({ icon: "building-2", color: "blue", text: "🏢 " + stats.clubs_registered + " clubs have registered!" });
-    }
-    if (stats.total_attended > 0) {
-      insights.push({ icon: "clipboard-check", color: "purple", text: "✅ " + attendanceRate + "% attendance rate at venue" });
-    }
-    if (stats.total_approved > 100) {
-      insights.push({ icon: "users", color: "green", text: "🎉 Crossed " + stats.total_approved + " approved members!" });
-    }
-
-    if (insights.length === 0) {
-      insights.push({ icon: "info", color: "blue", text: "📊 Waiting for more data to generate insights..." });
-    }
   }
 
   async function loadGroupDistribution() {
@@ -732,11 +467,7 @@
     const c = $("#topClubsList");
     const db = getDb();
     if (!c || !db) return;
-    const { data } = await db.from("clubs")
-      .select("club_name,current_registrations,max_registrations")
-      .eq("is_active", true)
-      .order("current_registrations", { ascending: false })
-      .limit(10);
+    const { data } = await db.from("clubs").select("club_name,current_registrations,max_registrations").eq("is_active", true).order("current_registrations", { ascending: false }).limit(10);
     if (!data) return;
     c.innerHTML = data.map((x, i) => {
       const pct = x.max_registrations > 0 ? Math.round((x.current_registrations / x.max_registrations) * 100) : 0;
@@ -749,19 +480,14 @@
     const c = $("#recentActivity");
     const db = getDb();
     if (!c || !db) return;
-    const { data } = await db.from("activity_log")
-      .select("*,admin_users(full_name)")
-      .order("created_at", { ascending: false })
-      .limit(15);
+    const { data } = await db.from("activity_log").select("*,admin_users(full_name)").order("created_at", { ascending: false }).limit(15);
     if (!data || !data.length) {
-      c.innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:var(--space-lg);">No recent activity</p>';
+      c.innerHTML = '<p style="color:#999;text-align:center;padding:14px;">No recent activity</p>';
       return;
     }
     c.innerHTML = data.map(a => {
-      const actionColors = { LOGIN: "blue", LOGOUT: "gray", APPROVE: "green", REJECT: "red", DELETE: "red", UPDATE: "orange", CHECK_IN: "purple", SYNC: "teal", VERIFY: "green" };
-      const color = actionColors[a.action_type] || "blue";
       return '<div class="activity-item">' +
-        '<div class="activity-action" style="color:var(--' + color + ');">' + esc(a.action_type) + '</div>' +
+        '<div class="activity-action">' + esc(a.action_type) + '</div>' +
         '<div class="activity-desc">' + esc(a.description) + '</div>' +
         '<div class="activity-time">' + timeAgo(a.created_at) + '</div>' +
       '</div>';
@@ -774,9 +500,7 @@
     if (!db) return;
     showLoading("Loading registrations...");
     try {
-      const { data } = await db.from("registrations")
-        .select("*,clubs(club_name,group_number)")
-        .order("created_at", { ascending: false });
+      const { data } = await db.from("registrations").select("*,clubs(club_name,group_number)").order("created_at", { ascending: false });
       window._cache.registrations = data || [];
       renderClubRegTable(window._cache.registrations);
     } catch (err) { console.error(err); }
@@ -787,7 +511,7 @@
     const tb = $("#clubRegTable tbody");
     if (!tb) return;
     if (!data.length) {
-      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray-400);padding:var(--space-xl);">No registrations found</td></tr>';
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;padding:24px;">No registrations found</td></tr>';
       return;
     }
     tb.innerHTML = data.map(r => {
@@ -797,9 +521,8 @@
           '<button class="btn-sm red" onclick="window.rejectReg(\'' + r.id + '\',\'club\')" title="Reject"><i data-lucide="x"></i></button>'
         : '<button class="btn-sm blue" onclick="window.viewRegDetails(\'' + r.id + '\')" title="View"><i data-lucide="eye"></i></button>' +
           '<button class="btn-sm red" onclick="window.deleteReg(\'' + r.id + '\',\'club\')" title="Delete"><i data-lucide="trash-2"></i></button>';
-
-      return '<tr><td><code onclick="copyToClipboard(\'' + r.registration_code + '\')" style="cursor:pointer;" title="Click to copy">' + esc(r.registration_code) + '</code></td>' +
-        '<td>' + esc(r.clubs?.club_name || "—") + '<br><small>Group ' + (r.clubs?.group_number || "—") + '</small></td>' +
+      return '<tr><td><code onclick="copyToClipboard(\'' + r.registration_code + '\')">' + esc(r.registration_code) + '</code></td>' +
+        '<td>' + esc(r.clubs?.club_name || "—") + '<br><small>G' + (r.clubs?.group_number || "—") + '</small></td>' +
         '<td>' + esc(r.registrant_name) + '<br><small>' + esc(r.registrant_email) + '</small></td>' +
         '<td>' + r.registrant_role + '</td>' +
         '<td><strong>' + r.total_members + '</strong></td>' +
@@ -815,12 +538,11 @@
   window.viewRegDetails = async function (id) {
     const db = getDb();
     if (!db) return;
-    showLoading("Loading details...");
+    showLoading();
     const { data: r } = await db.from("registrations").select("*,clubs(club_name)").eq("id", id).single();
     const { data: m } = await db.from("members").select("*").eq("registration_id", id);
     hideLoading();
     if (!r) return;
-
     let h = '<div class="detail-grid">' +
       '<div><strong>Code:</strong> ' + r.registration_code + '</div>' +
       '<div><strong>Club:</strong> ' + esc(r.clubs?.club_name) + '</div>' +
@@ -835,14 +557,11 @@
       (r.verified_at ? '<div><strong>Verified:</strong> ' + formatDate(r.verified_at) + '</div>' : '') +
       (r.rejection_reason ? '<div class="full-width"><strong>Rejection Reason:</strong> ' + esc(r.rejection_reason) + '</div>' : '') +
       '</div>';
-
     if (r.payment_screenshot_url && !r.payment_screenshot_url.startsWith("upload_failed")) {
-      h += '<div style="margin-top:16px;"><strong>Payment Screenshot:</strong><br><a href="' + r.payment_screenshot_url + '" target="_blank" rel="noopener"><img src="' + r.payment_screenshot_url + '" style="max-width:100%;max-height:400px;border-radius:8px;margin-top:8px;border:1px solid var(--gray-200);cursor:pointer;" alt="Payment"/></a><br><small>Click to open full size</small></div>';
+      h += '<div style="margin-top:16px;"><strong>Payment Screenshot:</strong><br><a href="' + r.payment_screenshot_url + '" target="_blank"><img src="' + r.payment_screenshot_url + '" style="max-width:100%;max-height:400px;border-radius:8px;margin-top:8px;border:1px solid #e0e4e8;"/></a></div>';
     }
-
     if (m && m.length) {
-      h += '<h4 style="margin-top:20px;">Members (' + m.length + ')</h4>' +
-        '<table class="admin-table compact" style="margin-top:8px;"><thead><tr><th>Name</th><th>RI ID</th><th>Contact</th><th>Food</th><th>Board</th><th>Status</th></tr></thead><tbody>';
+      h += '<h4 style="margin-top:20px;">Members (' + m.length + ')</h4><div style="overflow-x:auto;"><table class="admin-table compact" style="margin-top:8px;min-width:600px;"><thead><tr><th>Name</th><th>RI ID</th><th>Contact</th><th>Food</th><th>Board</th><th>Status</th></tr></thead><tbody>';
       m.forEach(x => {
         h += '<tr><td>' + esc(x.full_name) + '</td>' +
           '<td>' + x.ri_id + '</td>' +
@@ -851,14 +570,13 @@
           '<td>' + (x.is_board_member ? "Yes" : "No") + '</td>' +
           '<td>' + statusBadge(x.status) + '</td></tr>';
       });
-      h += '</tbody></table>';
+      h += '</tbody></table></div>';
     }
-
-    openModal("Registration Details — " + r.registration_code, h, "", "large");
+    openModal("Registration — " + r.registration_code, h, "", "large");
   };
 
-  window.approveReg = async function (id, type) {
-    confirmAction("Approve Registration", "Approve this registration? Members will receive confirmation emails automatically.", async () => {
+  window.approveReg = function (id, type) {
+    confirmAction("Approve Registration", "Approve this registration? Members will receive confirmation emails.", async () => {
       showLoading("Approving & sending emails...");
       const db = getDb();
       try {
@@ -866,10 +584,8 @@
         if (type === "club") {
           const { data: reg } = await db.from("registrations").select("*,clubs(club_name)").eq("id", id).single();
           if (!reg) throw new Error("Not found");
-
           await db.from("registrations").update({ status: "approved", verified_at: new Date().toISOString(), verified_by: currentAdmin.id }).eq("id", id);
           await db.from("members").update({ status: "approved" }).eq("registration_id", id);
-
           const { data: members } = await db.from("members").select("*").eq("registration_id", id);
           if (members) {
             for (const m of members) {
@@ -884,11 +600,9 @@
           const ok = await sendApprovalEmail(dc, dc.portfolio || "District Council");
           ok ? emailsSent++ : emailsFailed++;
         }
-
         logAction("APPROVE", type, id, "Approved. Emails: " + emailsSent);
         hideLoading();
         showToast("Approved! " + emailsSent + " email(s) sent" + (emailsFailed ? ", " + emailsFailed + " failed" : ""));
-        addNotification("Registration Approved", emailsSent + " confirmation email(s) sent", "success");
         type === "club" ? loadClubRegistrations() : loadDcRegistrations();
       } catch (err) {
         hideLoading();
@@ -897,12 +611,11 @@
     });
   };
 
-  window.rejectReg = async function (id, type) {
-    const reason = prompt("Enter rejection reason (this will be sent to the member):");
+  window.rejectReg = function (id, type) {
+    const reason = prompt("Enter rejection reason (will be sent to member):");
     if (!reason || !reason.trim()) return;
-
     confirmAction("Reject Registration", "Reject this registration? Members will receive notification emails.", async () => {
-      showLoading("Rejecting & notifying...");
+      showLoading("Rejecting...");
       const db = getDb();
       try {
         let emailsSent = 0, emailsFailed = 0;
@@ -924,21 +637,19 @@
             ok ? emailsSent++ : emailsFailed++;
           }
         }
-
         logAction("REJECT", type, id, "Rejected: " + reason);
         hideLoading();
         showToast("Rejected. " + emailsSent + " email(s) sent");
-        addNotification("Registration Rejected", "Rejection notice sent to " + emailsSent + " member(s)", "warning");
         type === "club" ? loadClubRegistrations() : loadDcRegistrations();
       } catch (err) {
         hideLoading();
-        showToast("Failed: " + err.message, "error");
+        showToast("Failed", "error");
       }
     }, true);
   };
 
   window.deleteReg = function (id, type) {
-    confirmAction("Delete Permanently", "This will permanently delete this registration and all associated members. Cannot be undone.", async () => {
+    confirmAction("Delete Permanently", "This will permanently delete this registration. Cannot be undone.", async () => {
       const db = getDb();
       try {
         if (type === "club") {
@@ -947,11 +658,11 @@
         } else {
           await db.from("district_council_registrations").delete().eq("id", id);
         }
-        logAction("DELETE", type, id, "Permanently deleted");
+        logAction("DELETE", type, id, "Deleted");
         showToast("Deleted");
         type === "club" ? loadClubRegistrations() : loadDcRegistrations();
       } catch (err) {
-        showToast("Delete failed: " + err.message, "error");
+        showToast("Delete failed", "error");
       }
     }, true);
   };
@@ -971,7 +682,7 @@
     const tb = $("#dcRegTable tbody");
     if (!tb) return;
     if (!data.length) {
-      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:var(--space-xl);">No DC registrations</td></tr>';
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:24px;">No DC registrations</td></tr>';
       return;
     }
     tb.innerHTML = data.map(r => {
@@ -1015,19 +726,17 @@
       (data.rejection_reason ? '<div class="full-width"><strong>Rejection Reason:</strong> ' + esc(data.rejection_reason) + '</div>' : '') +
       '</div>';
     if (data.payment_screenshot_url && !data.payment_screenshot_url.startsWith("upload_failed")) {
-      h += '<div style="margin-top:16px;"><strong>Payment Screenshot:</strong><br><a href="' + data.payment_screenshot_url + '" target="_blank"><img src="' + data.payment_screenshot_url + '" style="max-width:100%;max-height:400px;border-radius:8px;margin-top:8px;border:1px solid var(--gray-200);"/></a></div>';
+      h += '<div style="margin-top:16px;"><strong>Payment Screenshot:</strong><br><a href="' + data.payment_screenshot_url + '" target="_blank"><img src="' + data.payment_screenshot_url + '" style="max-width:100%;max-height:400px;border-radius:8px;margin-top:8px;border:1px solid #e0e4e8;"/></a></div>';
     }
-    openModal("DC Registration — " + data.registration_code, h, "", "large");
+    openModal("DC — " + data.registration_code, h, "", "large");
   };
 
-  // ==================== ALL MEMBERS ====================
+  // ==================== MEMBERS ====================
   async function loadAllMembers() {
     const db = getDb();
     if (!db) return;
     showLoading();
-    const { data } = await db.from("members")
-      .select("*,clubs(club_name,group_number),registrations(registration_code)")
-      .order("created_at", { ascending: false });
+    const { data } = await db.from("members").select("*,clubs(club_name,group_number),registrations(registration_code)").order("created_at", { ascending: false });
     window._cache.members = data || [];
     renderMembersTable(window._cache.members);
     hideLoading();
@@ -1037,12 +746,12 @@
     const tb = $("#membersTable tbody");
     if (!tb) return;
     if (!data.length) {
-      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray-400);padding:var(--space-xl);">No members found</td></tr>';
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;padding:24px;">No members found</td></tr>';
       return;
     }
     tb.innerHTML = data.map(m =>
       '<tr>' +
-        '<td><code onclick="copyToClipboard(\'' + m.member_code + '\')" style="cursor:pointer;" title="Copy">' + esc(m.member_code) + '</code></td>' +
+        '<td><code onclick="copyToClipboard(\'' + m.member_code + '\')">' + esc(m.member_code) + '</code></td>' +
         '<td>' + esc(m.full_name) + '</td>' +
         '<td>' + m.ri_id + '</td>' +
         '<td>' + esc(m.clubs?.club_name || "—") + '</td>' +
@@ -1059,7 +768,6 @@
 
   window.viewMemberDetail = async function (id) {
     const db = getDb();
-    if (!db) return;
     const { data: m } = await db.from("members").select("*,clubs(club_name,group_number)").eq("id", id).single();
     if (!m) return;
     openModal("Member — " + m.full_name,
@@ -1074,13 +782,12 @@
         '<div><strong>Food:</strong> ' + m.food_preference + '</div>' +
         '<div><strong>Board:</strong> ' + (m.is_board_member ? "Yes" : "No") + '</div>' +
         '<div><strong>Status:</strong> ' + statusBadge(m.status) + '</div>' +
-        '<div><strong>Pass:</strong> ' + (m.pass_generated ? "Yes " + formatDate(m.pass_generated_at) : "No") + '</div>' +
         '<div><strong>Attendance:</strong> ' + (m.attendance_checked ? formatDate(m.attendance_checked_at) : "Not checked") + '</div>' +
         '<div class="full-width"><strong>Expectations:</strong> ' + esc(m.expectations || "—") + '</div>' +
       '</div>');
   };
 
-  // ==================== CLUBS MANAGEMENT ====================
+  // ==================== CLUBS ====================
   async function loadClubsManagement() {
     const db = getDb();
     if (!db) return;
@@ -1130,7 +837,7 @@
     openModal("Bulk Update Club Limits",
       '<div class="form-group"><label>New Max Registration Limit</label><input type="number" id="bulkLimitVal" min="0" max="50" value="10" /></div>' +
       '<div class="form-group"><label>Filter by Group (optional)</label><select id="bulkLimitGroup"><option value="">All Groups</option><option value="1">Group 1</option><option value="2">Group 2</option><option value="3">Group 3</option><option value="4">Group 4</option></select></div>',
-      '<button class="btn btn-primary" onclick="window.bulkApplyLimit()">Apply to All</button>');
+      '<button class="btn btn-primary" onclick="window.bulkApplyLimit()">Apply</button>');
   });
 
   window.bulkApplyLimit = async function () {
@@ -1144,7 +851,7 @@
         if (grp) q = q.eq("group_number", parseInt(grp));
         else q = q.gte("group_number", 1);
         await q;
-        logAction("BULK_UPDATE", "clubs", null, "Limit " + val + " for " + (grp ? "Group " + grp : "all"));
+        logAction("BULK_UPDATE", "clubs", null, "Limit " + val);
         closeModal();
         showToast("Bulk update complete");
         loadClubsManagement();
@@ -1227,7 +934,6 @@
       if (!m) { hideLoading(); showToast("QR not recognized", "error"); return; }
       if (m.attendance_checked) { hideLoading(); showToast("Already checked in", "warning"); return; }
       if (m.status !== "approved") { hideLoading(); showToast("Not approved", "error"); return; }
-
       await db.from(tbl).update({ attendance_checked: true, attendance_checked_at: new Date().toISOString(), attendance_checked_by: currentAdmin.id }).eq("id", m.id);
       logAction("CHECK_IN", tbl, m.id, m.full_name + " checked in");
       hideLoading();
@@ -1235,573 +941,27 @@
     } catch (err) { hideLoading(); showToast("Error", "error"); }
   }
 
-  // ==================== CONTENT EDITORS ====================
-  async function loadSiteContentEditor() {
-    const db = getDb();
-    if (!db) return;
-    const { data } = await db.from("site_content").select("*").order("section_key");
-    const c = $("#siteContentList");
-    if (!c || !data) return;
-    c.innerHTML = data.map(s =>
-      '<div class="content-editor-card">' +
-        '<div class="content-editor-header"><h4>' + esc(s.section_key) + '</h4>' +
-        '<button class="btn-sm blue" onclick="window.editSiteContent(\'' + s.id + '\',\'' + s.section_key + '\')"><i data-lucide="edit-3"></i> Edit</button></div>' +
-        '<p><strong>Title:</strong> ' + esc(s.title || "—") + '</p>' +
-        '<p>' + esc((s.content || "").substring(0, 120)) + '...</p>' +
-      '</div>'
-    ).join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  window.editSiteContent = async function (id, key) {
-    const db = getDb();
-    const { data } = await db.from("site_content").select("*").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit: " + key,
-      '<div class="form-group"><label>Title</label><input id="eT" value="' + esc(data.title || "") + '"/></div>' +
-      '<div class="form-group"><label>Content</label><textarea id="eC" rows="5">' + esc(data.content || "") + '</textarea></div>' +
-      '<div class="form-group"><label>Extra Data (JSON)</label><textarea id="eE" rows="8" style="font-family:monospace;">' + JSON.stringify(data.extra_data || {}, null, 2) + '</textarea></div>',
-      '<button class="btn btn-primary" onclick="window.saveSiteContent(\'' + id + '\')">Save</button>', "large");
-  };
-
-  window.saveSiteContent = async function (id) {
-    let extra = {};
-    try { extra = JSON.parse($("#eE").value); } catch { showToast("Invalid JSON", "error"); return; }
-    const db = getDb();
-    await db.from("site_content").update({ title: $("#eT").value, content: $("#eC").value, extra_data: extra, updated_by: currentAdmin.id }).eq("id", id);
-    logAction("UPDATE", "site_content", id, "Updated");
-    closeModal();
-    showToast("Saved!");
-    loadSiteContentEditor();
-  };
-
-  // ==================== AGENDA + OTHER SIMPLE EDITORS ====================
-  async function loadAgendaEditor() {
-    const db = getDb();
-    if (!db) return;
-    const { data } = await db.from("agenda").select("*").order("day_number").order("sort_order");
-    const tb = $("#agendaTable tbody");
-    if (!tb) return;
-    tb.innerHTML = (data || []).map(a =>
-      '<tr><td>Day ' + a.day_number + '</td><td>' + a.time_slot + '</td><td>' + esc(a.title) + '</td>' +
-      '<td>' + esc(a.location || "—") + '</td><td>' + a.sort_order + '</td>' +
-      '<td>' + (a.is_active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge gray">Hidden</span>') + '</td>' +
-      '<td><div class="action-btns"><button class="btn-sm blue" onclick="window.editAgenda(\'' + a.id + '\')"><i data-lucide="edit-3"></i></button>' +
-      '<button class="btn-sm red" onclick="window.deleteItem(\'agenda\',\'' + a.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
-    ).join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  $("#addAgendaBtn")?.addEventListener("click", () => {
-    openModal("Add Agenda",
-      '<div class="form-grid"><div class="form-group"><label>Day</label><select id="aD"><option value="1">Day 1</option><option value="2">Day 2</option></select></div>' +
-      '<div class="form-group"><label>Time</label><input id="aT" placeholder="09:00 AM"/></div>' +
-      '<div class="form-group"><label>Title</label><input id="aTi"/></div>' +
-      '<div class="form-group"><label>Location</label><input id="aL"/></div>' +
-      '<div class="form-group full-width"><label>Description</label><textarea id="aDe" rows="3"></textarea></div>' +
-      '<div class="form-group"><label>Sort</label><input type="number" id="aO" value="0"/></div></div>',
-      '<button class="btn btn-primary" onclick="window.createAgenda()">Create</button>');
-  });
-
-  window.createAgenda = async function () {
-    const db = getDb();
-    await db.from("agenda").insert({
-      day_number: parseInt($("#aD").value), time_slot: $("#aT").value,
-      title: $("#aTi").value, location: $("#aL").value, description: $("#aDe").value,
-      sort_order: parseInt($("#aO").value) || 0,
-      event_date: $("#aD").value === "1" ? "2026-12-12" : "2026-12-13"
-    });
-    closeModal(); showToast("Added!"); loadAgendaEditor();
-  };
-
-  window.editAgenda = async function (id) {
-    const db = getDb();
-    const { data } = await db.from("agenda").select("*").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit Agenda",
-      '<div class="form-grid"><div class="form-group"><label>Day</label><select id="aD"><option value="1"' + (data.day_number === 1 ? " selected" : "") + '>1</option><option value="2"' + (data.day_number === 2 ? " selected" : "") + '>2</option></select></div>' +
-      '<div class="form-group"><label>Time</label><input id="aT" value="' + data.time_slot + '"/></div>' +
-      '<div class="form-group"><label>Title</label><input id="aTi" value="' + esc(data.title) + '"/></div>' +
-      '<div class="form-group"><label>Location</label><input id="aL" value="' + esc(data.location || "") + '"/></div>' +
-      '<div class="form-group full-width"><label>Desc</label><textarea id="aDe" rows="3">' + esc(data.description || "") + '</textarea></div>' +
-      '<div class="form-group"><label>Order</label><input type="number" id="aO" value="' + data.sort_order + '"/></div></div>',
-      '<button class="btn btn-primary" onclick="window.saveAgenda(\'' + id + '\')">Save</button>');
-  };
-
-  window.saveAgenda = async function (id) {
-    const db = getDb();
-    await db.from("agenda").update({
-      day_number: parseInt($("#aD").value), time_slot: $("#aT").value,
-      title: $("#aTi").value, location: $("#aL").value, description: $("#aDe").value,
-      sort_order: parseInt($("#aO").value) || 0
-    }).eq("id", id);
-    closeModal(); showToast("Saved!"); loadAgendaEditor();
-  };
-
-  // ==================== COLOUR HUNT + TREASURE + LEADERS + FOOD + ANN + FAQS ====================
-  async function loadColourHuntEditor() {
-    const db = getDb();
-    const { data } = await db.from("colour_hunt").select("*").order("sort_order");
-    const c = $("#colourHuntList");
-    if (!c) return;
-    if (!data || !data.length) { c.innerHTML = '<p style="text-align:center;padding:var(--space-xl);">No challenges yet.</p>'; return; }
-    c.innerHTML = data.map(x => '<div class="content-editor-card"><h4>' + esc(x.title) + '</h4><p>' + esc((x.description || "").substring(0, 150)) + '...</p><button class="btn-sm blue" onclick="window.editColourHunt(\'' + x.id + '\')"><i data-lucide="edit-3"></i> Edit</button></div>').join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  $("#addColourHuntBtn")?.addEventListener("click", () => {
-    openModal("Add Colour Hunt",
-      '<div class="form-group"><label>Title</label><input id="cT"/></div>' +
-      '<div class="form-group"><label>Description</label><textarea id="cD" rows="4"></textarea></div>' +
-      '<div class="form-group"><label>Rules</label><textarea id="cR" rows="5"></textarea></div>' +
-      '<div class="form-group"><label>Hashtags</label><input id="cH" placeholder="#Altitude2026"/></div>',
-      '<button class="btn btn-primary" onclick="window.createColourHunt()">Create</button>');
-  });
-
-  window.createColourHunt = async function () {
-    const db = getDb();
-    await db.from("colour_hunt").insert({ title: $("#cT").value, description: $("#cD").value, rules: $("#cR").value, hashtags: $("#cH").value });
-    closeModal(); showToast("Added!"); loadColourHuntEditor();
-  };
-
-  window.editColourHunt = async function (id) {
-    const db = getDb();
-    const { data } = await db.from("colour_hunt").select("*").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit Colour Hunt",
-      '<div class="form-group"><label>Title</label><input id="cT" value="' + esc(data.title) + '"/></div>' +
-      '<div class="form-group"><label>Description</label><textarea id="cD" rows="4">' + esc(data.description) + '</textarea></div>' +
-      '<div class="form-group"><label>Rules</label><textarea id="cR" rows="5">' + esc(data.rules || "") + '</textarea></div>' +
-      '<div class="form-group"><label>Hashtags</label><input id="cH" value="' + esc(data.hashtags || "") + '"/></div>',
-      '<button class="btn btn-primary" onclick="window.saveColourHunt(\'' + id + '\')">Save</button>');
-  };
-
-  window.saveColourHunt = async function (id) {
-    const db = getDb();
-    await db.from("colour_hunt").update({ title: $("#cT").value, description: $("#cD").value, rules: $("#cR").value, hashtags: $("#cH").value }).eq("id", id);
-    closeModal(); showToast("Saved!"); loadColourHuntEditor();
-  };
-
-  async function loadTreasureEditor() {
-    const db = getDb();
-    const { data } = await db.from("treasure_hunt").select("*").order("sort_order");
-    const tb = $("#treasureTable tbody");
-    if (!tb) return;
-    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:var(--space-xl);">No clues yet</td></tr>'; return; }
-    tb.innerHTML = data.map(c =>
-      '<tr><td>' + c.clue_number + '</td><td>' + esc(c.clue_title) + '</td><td>Group ' + (c.group_number || "All") + '</td>' +
-      '<td>' + esc((c.clue_text || "").substring(0, 60)) + '...</td>' +
-      '<td>' + (c.is_revealed ? '<span class="status-badge green">Revealed</span>' : '<span class="status-badge gray">Hidden</span>') + '</td>' +
-      '<td><div class="action-btns"><button class="btn-sm green" onclick="window.toggleClue(\'' + c.id + '\',' + !c.is_revealed + ')"><i data-lucide="' + (c.is_revealed ? "eye-off" : "eye") + '"></i></button>' +
-      '<button class="btn-sm blue" onclick="window.editTreasure(\'' + c.id + '\')"><i data-lucide="edit-3"></i></button>' +
-      '<button class="btn-sm red" onclick="window.deleteItem(\'treasure_hunt\',\'' + c.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
-    ).join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  $("#addTreasureBtn")?.addEventListener("click", () => {
-    openModal("Add Clue",
-      '<div class="form-grid"><div class="form-group"><label>Clue #</label><input type="number" id="tN" value="1"/></div>' +
-      '<div class="form-group"><label>Title</label><input id="tT"/></div>' +
-      '<div class="form-group full-width"><label>Text</label><textarea id="tX" rows="3"></textarea></div>' +
-      '<div class="form-group"><label>Hint</label><input id="tH"/></div>' +
-      '<div class="form-group"><label>Group</label><select id="tG"><option value="">All</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div></div>',
-      '<button class="btn btn-primary" onclick="window.createTreasure()">Create</button>');
-  });
-
-  window.createTreasure = async function () {
-    const db = getDb();
-    await db.from("treasure_hunt").insert({
-      clue_number: parseInt($("#tN").value) || 1, clue_title: $("#tT").value,
-      clue_text: $("#tX").value, hint: $("#tH").value,
-      group_number: $("#tG").value ? parseInt($("#tG").value) : null
-    });
-    closeModal(); showToast("Added!"); loadTreasureEditor();
-  };
-
-  window.toggleClue = async function (id, reveal) {
-    const db = getDb();
-    await db.from("treasure_hunt").update({ is_revealed: reveal }).eq("id", id);
-    showToast(reveal ? "Revealed!" : "Hidden");
-    loadTreasureEditor();
-  };
-
-  window.editTreasure = async function (id) {
-    const db = getDb();
-    const { data } = await db.from("treasure_hunt").select("*").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit Clue",
-      '<div class="form-grid"><div class="form-group"><label>#</label><input type="number" id="tN" value="' + data.clue_number + '"/></div>' +
-      '<div class="form-group"><label>Title</label><input id="tT" value="' + esc(data.clue_title) + '"/></div>' +
-      '<div class="form-group full-width"><label>Text</label><textarea id="tX" rows="3">' + esc(data.clue_text) + '</textarea></div>' +
-      '<div class="form-group"><label>Hint</label><input id="tH" value="' + esc(data.hint || "") + '"/></div>' +
-      '<div class="form-group"><label>Group</label><select id="tG"><option value="">All</option>' +
-      [1,2,3,4].map(g => '<option value="' + g + '"' + (data.group_number === g ? " selected" : "") + '>' + g + '</option>').join("") +
-      '</select></div></div>',
-      '<button class="btn btn-primary" onclick="window.saveTreasure(\'' + id + '\')">Save</button>');
-  };
-
-  window.saveTreasure = async function (id) {
-    const db = getDb();
-    await db.from("treasure_hunt").update({
-      clue_number: parseInt($("#tN").value), clue_title: $("#tT").value,
-      clue_text: $("#tX").value, hint: $("#tH").value,
-      group_number: $("#tG").value ? parseInt($("#tG").value) : null
-    }).eq("id", id);
-    closeModal(); showToast("Saved!"); loadTreasureEditor();
-  };
-
-  async function loadLeadersEditor() {
-    const db = getDb();
-    const { data } = await db.from("group_leaders").select("*").eq("is_active", true).order("group_number");
-    const tb = $("#leadersTable tbody");
-    if (!tb) return;
-    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:var(--space-xl);">No leaders</td></tr>'; return; }
-    tb.innerHTML = data.map(l =>
-      '<tr><td>Group ' + l.group_number + '</td><td>' + esc(l.leader_name) + '</td>' +
-      '<td>' + esc(l.leader_role) + '</td><td>' + esc(l.leader_club || "—") + '</td>' +
-      '<td>' + l.contact_number + '</td><td>' + (l.is_primary ? "Yes" : "No") + '</td>' +
-      '<td><div class="action-btns"><button class="btn-sm blue" onclick="window.editLeader(\'' + l.id + '\')"><i data-lucide="edit-3"></i></button>' +
-      '<button class="btn-sm red" onclick="window.deleteItem(\'group_leaders\',\'' + l.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
-    ).join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  $("#addLeaderBtn")?.addEventListener("click", () => {
-    openModal("Add Leader",
-      '<div class="form-grid"><div class="form-group"><label>Group</label><select id="lG"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>' +
-      '<div class="form-group"><label>Name</label><input id="lN"/></div>' +
-      '<div class="form-group"><label>Role</label><input id="lR"/></div>' +
-      '<div class="form-group"><label>Club</label><input id="lC"/></div>' +
-      '<div class="form-group"><label>Phone</label><input id="lP"/></div>' +
-      '<div class="form-group"><label>Email</label><input id="lE" type="email"/></div></div>',
-      '<button class="btn btn-primary" onclick="window.createLeader()">Create</button>');
-  });
-
-  window.createLeader = async function () {
-    const db = getDb();
-    await db.from("group_leaders").insert({
-      group_number: parseInt($("#lG").value), leader_name: $("#lN").value,
-      leader_role: $("#lR").value, leader_club: $("#lC").value,
-      contact_number: $("#lP").value, email: $("#lE").value
-    });
-    closeModal(); showToast("Added!"); loadLeadersEditor();
-  };
-
-  window.editLeader = async function (id) {
-    const db = getDb();
-    const { data } = await db.from("group_leaders").select("*").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit Leader",
-      '<div class="form-grid"><div class="form-group"><label>Group</label><select id="lG">' +
-      [1,2,3,4].map(g => '<option value="' + g + '"' + (data.group_number === g ? " selected" : "") + '>' + g + '</option>').join("") +
-      '</select></div>' +
-      '<div class="form-group"><label>Name</label><input id="lN" value="' + esc(data.leader_name) + '"/></div>' +
-      '<div class="form-group"><label>Role</label><input id="lR" value="' + esc(data.leader_role) + '"/></div>' +
-      '<div class="form-group"><label>Club</label><input id="lC" value="' + esc(data.leader_club || "") + '"/></div>' +
-      '<div class="form-group"><label>Phone</label><input id="lP" value="' + data.contact_number + '"/></div>' +
-      '<div class="form-group"><label>Email</label><input id="lE" value="' + esc(data.email || "") + '"/></div></div>',
-      '<button class="btn btn-primary" onclick="window.saveLeader(\'' + id + '\')">Save</button>');
-  };
-
-  window.saveLeader = async function (id) {
-    const db = getDb();
-    await db.from("group_leaders").update({
-      group_number: parseInt($("#lG").value), leader_name: $("#lN").value,
-      leader_role: $("#lR").value, leader_club: $("#lC").value,
-      contact_number: $("#lP").value, email: $("#lE").value
-    }).eq("id", id);
-    closeModal(); showToast("Saved!"); loadLeadersEditor();
-  };
-
-  async function loadFoodEditor() {
-    const db = getDb();
-    const { data } = await db.from("food_menu").select("*").order("day_number").order("sort_order");
-    const tb = $("#foodTable tbody");
-    if (!tb) return;
-    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:var(--space-xl);">No items</td></tr>'; return; }
-    tb.innerHTML = data.map(f =>
-      '<tr><td>Day ' + f.day_number + '</td><td>' + f.meal_type + '</td>' +
-      '<td><span class="food-badge ' + (f.food_type === "VEG" ? "veg" : "nonveg") + '">' + f.food_type + '</span></td>' +
-      '<td>' + esc(f.item_name) + '</td><td>' + esc(f.description || "") + '</td>' +
-      '<td><div class="action-btns"><button class="btn-sm blue" onclick="window.editFood(\'' + f.id + '\')"><i data-lucide="edit-3"></i></button>' +
-      '<button class="btn-sm red" onclick="window.deleteItem(\'food_menu\',\'' + f.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
-    ).join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  const foodFormHtml = (d) => (
-    '<div class="form-grid"><div class="form-group"><label>Day</label><select id="fD">' +
-    '<option value="1"' + (d?.day_number === 1 ? " selected" : "") + '>1</option>' +
-    '<option value="2"' + (d?.day_number === 2 ? " selected" : "") + '>2</option></select></div>' +
-    '<div class="form-group"><label>Meal</label><select id="fM">' +
-    ["Breakfast","Lunch","Snacks","Dinner","Beverages"].map(x => '<option' + (d?.meal_type === x ? " selected" : "") + '>' + x + '</option>').join("") + '</select></div>' +
-    '<div class="form-group"><label>Type</label><select id="fT">' +
-    ["VEG","NON-VEG","COMMON"].map(x => '<option value="' + x + '"' + (d?.food_type === x ? " selected" : "") + '>' + x + '</option>').join("") + '</select></div>' +
-    '<div class="form-group"><label>Item</label><input id="fN" value="' + esc(d?.item_name || "") + '"/></div>' +
-    '<div class="form-group full-width"><label>Desc</label><input id="fDe" value="' + esc(d?.description || "") + '"/></div></div>'
-  );
-
-  $("#addFoodBtn")?.addEventListener("click", () => {
-    openModal("Add Food Item", foodFormHtml(), '<button class="btn btn-primary" onclick="window.createFood()">Create</button>');
-  });
-
-  window.createFood = async function () {
-    const db = getDb();
-    await db.from("food_menu").insert({
-      day_number: parseInt($("#fD").value), meal_type: $("#fM").value,
-      food_type: $("#fT").value, item_name: $("#fN").value, description: $("#fDe").value
-    });
-    closeModal(); showToast("Added!"); loadFoodEditor();
-  };
-
-  window.editFood = async function (id) {
-    const db = getDb();
-    const { data } = await db.from("food_menu").select("*").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit Food", foodFormHtml(data), '<button class="btn btn-primary" onclick="window.saveFood(\'' + id + '\')">Save</button>');
-  };
-
-  window.saveFood = async function (id) {
-    const db = getDb();
-    await db.from("food_menu").update({
-      day_number: parseInt($("#fD").value), meal_type: $("#fM").value,
-      food_type: $("#fT").value, item_name: $("#fN").value, description: $("#fDe").value
-    }).eq("id", id);
-    closeModal(); showToast("Saved!"); loadFoodEditor();
-  };
-
-  async function loadAnnouncementsEditor() {
-    const db = getDb();
-    const { data } = await db.from("announcements").select("*").order("created_at", { ascending: false });
-    const c = $("#announcementsList");
-    if (!c) return;
-    if (!data || !data.length) { c.innerHTML = '<p style="text-align:center;padding:var(--space-xl);">No announcements.</p>'; return; }
-    c.innerHTML = data.map(a =>
-      '<div class="content-editor-card"><div class="content-editor-header">' +
-      '<h4>' + esc(a.title) + ' <span class="status-badge ' + a.priority + '">' + a.priority + '</span></h4>' +
-      '<div class="action-btns"><button class="btn-sm blue" onclick="window.editAnnouncement(\'' + a.id + '\')"><i data-lucide="edit-3"></i></button>' +
-      '<button class="btn-sm red" onclick="window.deleteItem(\'announcements\',\'' + a.id + '\')"><i data-lucide="trash-2"></i></button></div></div>' +
-      '<p>' + esc(a.message) + '</p><small>' + (a.is_active ? "Active" : "Inactive") + ' · ' + (a.show_on_homepage ? "Homepage" : "Hidden") + '</small></div>'
-    ).join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  const annFormHtml = (d) => (
-    '<div class="form-group"><label>Title</label><input id="anT" value="' + esc(d?.title || "") + '"/></div>' +
-    '<div class="form-group"><label>Message</label><textarea id="anM" rows="4">' + esc(d?.message || "") + '</textarea></div>' +
-    '<div class="form-group"><label>Priority</label><select id="anP">' +
-    ["low","normal","high","urgent"].map(p => '<option value="' + p + '"' + (d?.priority === p ? " selected" : "") + '>' + p + '</option>').join("") + '</select></div>' +
-    '<div class="form-group"><label><input type="checkbox" id="anA"' + (d?.is_active !== false ? " checked" : "") + '/> Active</label></div>' +
-    '<div class="form-group"><label><input type="checkbox" id="anH"' + (d?.show_on_homepage !== false ? " checked" : "") + '/> Homepage</label></div>'
-  );
-
-  $("#addAnnouncementBtn")?.addEventListener("click", () => {
-    openModal("New Announcement", annFormHtml(), '<button class="btn btn-primary" onclick="window.createAnnouncement()">Create</button>');
-  });
-
-  window.createAnnouncement = async function () {
-    const db = getDb();
-    await db.from("announcements").insert({
-      title: $("#anT").value, message: $("#anM").value, priority: $("#anP").value,
-      is_active: $("#anA").checked, show_on_homepage: $("#anH").checked, created_by: currentAdmin.id
-    });
-    closeModal(); showToast("Created!"); loadAnnouncementsEditor();
-  };
-
-  window.editAnnouncement = async function (id) {
-    const db = getDb();
-    const { data } = await db.from("announcements").select("*").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit Announcement", annFormHtml(data), '<button class="btn btn-primary" onclick="window.saveAnnouncement(\'' + id + '\')">Save</button>');
-  };
-
-  window.saveAnnouncement = async function (id) {
-    const db = getDb();
-    await db.from("announcements").update({
-      title: $("#anT").value, message: $("#anM").value, priority: $("#anP").value,
-      is_active: $("#anA").checked, show_on_homepage: $("#anH").checked
-    }).eq("id", id);
-    closeModal(); showToast("Saved!"); loadAnnouncementsEditor();
-  };
-
-  async function loadFaqsEditor() {
-    const db = getDb();
-    const { data } = await db.from("faqs").select("*").order("sort_order");
-    const tb = $("#faqTable tbody");
-    if (!tb) return;
-    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:var(--space-xl);">No FAQs</td></tr>'; return; }
-    tb.innerHTML = data.map(f =>
-      '<tr><td>' + esc(f.question) + '</td><td>' + f.category + '</td><td>' + f.sort_order + '</td>' +
-      '<td>' + (f.is_active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge gray">Hidden</span>') + '</td>' +
-      '<td><div class="action-btns"><button class="btn-sm blue" onclick="window.editFaq(\'' + f.id + '\')"><i data-lucide="edit-3"></i></button>' +
-      '<button class="btn-sm red" onclick="window.deleteItem(\'faqs\',\'' + f.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
-    ).join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  const faqFormHtml = (d) => (
-    '<div class="form-group"><label>Question</label><input id="fqQ" value="' + esc(d?.question || "") + '"/></div>' +
-    '<div class="form-group"><label>Answer</label><textarea id="fqA" rows="4">' + esc(d?.answer || "") + '</textarea></div>' +
-    '<div class="form-group"><label>Category</label><input id="fqC" value="' + (d?.category || "General") + '"/></div>' +
-    '<div class="form-group"><label>Order</label><input type="number" id="fqO" value="' + (d?.sort_order || 0) + '"/></div>'
-  );
-
-  $("#addFaqBtn")?.addEventListener("click", () => {
-    openModal("Add FAQ", faqFormHtml(), '<button class="btn btn-primary" onclick="window.createFaq()">Create</button>');
-  });
-
-  window.createFaq = async function () {
-    const db = getDb();
-    await db.from("faqs").insert({ question: $("#fqQ").value, answer: $("#fqA").value, category: $("#fqC").value, sort_order: parseInt($("#fqO").value) || 0 });
-    closeModal(); showToast("Added!"); loadFaqsEditor();
-  };
-
-  window.editFaq = async function (id) {
-    const db = getDb();
-    const { data } = await db.from("faqs").select("*").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit FAQ", faqFormHtml(data), '<button class="btn btn-primary" onclick="window.saveFaq(\'' + id + '\')">Save</button>');
-  };
-
-  window.saveFaq = async function (id) {
-    const db = getDb();
-    await db.from("faqs").update({ question: $("#fqQ").value, answer: $("#fqA").value, category: $("#fqC").value, sort_order: parseInt($("#fqO").value) || 0 }).eq("id", id);
-    closeModal(); showToast("Saved!"); loadFaqsEditor();
-  };
-
-  // ==================== ADMIN USERS ====================
-  async function loadAdminsEditor() {
-    const db = getDb();
-    if (!db || currentAdmin?.role !== "super_admin") return;
-    const { data } = await db.from("admin_users").select("id,email,full_name,role,is_active,last_login").order("created_at");
-    const tb = $("#adminsTable tbody");
-    if (!tb) return;
-    tb.innerHTML = (data || []).map(a =>
-      '<tr><td>' + esc(a.full_name) + '</td><td>' + a.email + '</td>' +
-      '<td><span class="status-badge ' + (a.role === "super_admin" ? "green" : a.role === "scanner" ? "orange" : "blue") + '">' + a.role + '</span></td>' +
-      '<td>' + (a.is_active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge red">Inactive</span>') + '</td>' +
-      '<td>' + formatDate(a.last_login) + '</td>' +
-      '<td><button class="btn-sm blue" onclick="window.editAdmin(\'' + a.id + '\')"><i data-lucide="edit-3"></i></button></td></tr>'
-    ).join("");
-    if (typeof lucide !== "undefined") lucide.createIcons();
-  }
-
-  $("#addAdminBtn")?.addEventListener("click", () => {
-    openModal("Add Admin",
-      '<div class="form-group"><label>Name</label><input id="adN"/></div>' +
-      '<div class="form-group"><label>Email</label><input id="adE" type="email"/></div>' +
-      '<div class="form-group"><label>Password</label><input id="adP" type="password"/></div>' +
-      '<div class="form-group"><label>Role</label><select id="adR"><option value="admin">Admin</option><option value="super_admin">Super Admin</option><option value="scanner">Scanner</option></select></div>',
-      '<button class="btn btn-primary" onclick="window.createAdmin()">Create</button>');
-  });
-
-  window.createAdmin = async function () {
-    const email = $("#adE").value.trim().toLowerCase();
-    const pass = $("#adP").value;
-    if (!email || !pass) { showToast("All fields required", "error"); return; }
-    const db = getDb();
-    try {
-      const { error } = await db.rpc("create_admin", { p_email: email, p_password: pass, p_name: $("#adN").value, p_role: $("#adR").value });
-      if (error) throw error;
-      closeModal(); showToast("Created!"); loadAdminsEditor();
-    } catch (e) { showToast("Failed: " + e.message, "error"); }
-  };
-
-  window.editAdmin = async function (id) {
-    const db = getDb();
-    const { data } = await db.from("admin_users").select("id,email,full_name,role,is_active").eq("id", id).single();
-    if (!data) return;
-    openModal("Edit Admin",
-      '<div class="form-group"><label>Name</label><input id="adN" value="' + esc(data.full_name) + '"/></div>' +
-      '<div class="form-group"><label>Email</label><input id="adE" value="' + data.email + '"/></div>' +
-      '<div class="form-group"><label>Role</label><select id="adR">' +
-      ["admin","super_admin","scanner"].map(r => '<option value="' + r + '"' + (data.role === r ? " selected" : "") + '>' + r + '</option>').join("") +
-      '</select></div>' +
-      '<div class="form-group"><label><input type="checkbox" id="adA"' + (data.is_active ? " checked" : "") + '/> Active</label></div>',
-      '<button class="btn btn-primary" onclick="window.saveAdmin(\'' + id + '\')">Save</button>');
-  };
-
-  window.saveAdmin = async function (id) {
-    const db = getDb();
-    await db.from("admin_users").update({ full_name: $("#adN").value, email: $("#adE").value, role: $("#adR").value, is_active: $("#adA").checked }).eq("id", id);
-    closeModal(); showToast("Saved!"); loadAdminsEditor();
-  };
-
-  // ==================== ACTIVITY LOG ====================
-  async function loadActivityLog() {
-    const db = getDb();
-    if (!db) return;
-    const { data } = await db.from("activity_log").select("*,admin_users(full_name)").order("created_at", { ascending: false }).limit(200);
-    const tb = $("#activityTable tbody");
-    if (!tb) return;
-    tb.innerHTML = (data || []).map(a =>
-      '<tr><td>' + formatDate(a.created_at) + '</td><td>' + esc(a.admin_users?.full_name || "System") + '</td>' +
-      '<td><span class="status-badge blue">' + a.action_type + '</span></td>' +
-      '<td>' + a.entity_type + '</td><td>' + esc(a.description) + '</td></tr>'
-    ).join("");
-  }
-
-  // ==================== GENERIC DELETE ====================
-  window.deleteItem = function (table, id) {
-    confirmAction("Delete Item", "This cannot be undone. Are you sure?", async () => {
-      const db = getDb();
-      try {
-        await db.from(table).delete().eq("id", id);
-        logAction("DELETE", table, id, "Deleted from " + table);
-        showToast("Deleted");
-        const v = $(".view.active")?.id?.replace("view-", "");
-        if (v) navigateTo(v);
-      } catch (err) { showToast("Delete failed", "error"); }
-    }, true);
-  };
-
-  // ==================== EXPORT ====================
-  function exportExcel(data, name) {
-    if (typeof XLSX === "undefined") { showToast("Export library not loaded", "error"); return; }
-    if (!data || !data.length) { showToast("No data", "warning"); return; }
-    try {
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Data");
-      const ts = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(wb, "ALTITUDE_" + name + "_" + ts + ".xlsx");
-      showToast("Exported " + data.length + " records");
-    } catch (e) { showToast("Export failed", "error"); }
-  }
-
-  // ==================== TREASURY & ACCOUNTS MODULE ====================
+  // ==================== TREASURY ====================
   async function loadTreasury() {
     const db = getDb();
     if (!db) return;
     showLoading("Loading treasury...");
-
     try {
-      // Load summary
       const { data: summary } = await db.from("treasury_summary").select("*").single();
       if (summary) {
         const fmt = (v) => "₹" + (Number(v) || 0).toLocaleString("en-IN");
-        const setText = (id, val) => { const el = $("#" + id); if (el) el.textContent = val; };
-        setText("trsIncome", fmt(summary.total_income));
-        setText("trsExpense", fmt(summary.total_expense));
-        setText("trsBalance", fmt(summary.net_balance));
-        setText("trsGst", fmt(summary.total_gst));
-        setText("trsTds", fmt(summary.total_tds));
-        setText("trsRegRev", fmt(summary.registration_revenue));
+        $("#trsIncome").textContent = fmt(summary.total_income);
+        $("#trsExpense").textContent = fmt(summary.total_expense);
+        $("#trsBalance").textContent = fmt(summary.net_balance);
+        $("#trsGst").textContent = fmt(summary.total_gst);
+        $("#trsTds").textContent = fmt(summary.total_tds);
+        $("#trsRegRev").textContent = fmt(summary.registration_revenue);
       }
-
-      // Load transactions
-      const { data: txns } = await db.from("treasury_transactions")
-        .select("*,admin_users!treasury_transactions_created_by_fkey(full_name)")
-        .order("transaction_date", { ascending: false });
+      const { data: txns } = await db.from("treasury_transactions").select("*").order("transaction_date", { ascending: false });
       window._cache.treasury = txns || [];
       renderTreasuryTable(window._cache.treasury);
-
-      // Load budget variance
       await loadBudgetVariance();
-    } catch (err) {
-      console.error("Treasury load error:", err);
-    }
+    } catch (err) { console.error("Treasury:", err); }
     hideLoading();
   }
 
@@ -1809,19 +969,15 @@
     const tb = $("#treasuryTable tbody");
     if (!tb) return;
     if (!data.length) {
-      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--gray-400);padding:var(--space-xl);">No transactions recorded yet</td></tr>';
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;padding:24px;">No transactions yet</td></tr>';
       return;
     }
     const fmt = (v) => "₹" + (Number(v) || 0).toLocaleString("en-IN");
-
     tb.innerHTML = data.map(t => {
       const typeLabel = t.transaction_type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
       return '<tr>' +
         '<td>' + formatDate(t.transaction_date, false) + '</td>' +
-        '<td><strong>' + esc(t.description) + '</strong>' +
-          (t.vendor_name ? '<br><small>' + esc(t.vendor_name) + '</small>' : '') +
-          (t.reference_number ? '<br><small>Ref: ' + esc(t.reference_number) + '</small>' : '') +
-        '</td>' +
+        '<td><strong>' + esc(t.description) + '</strong>' + (t.vendor_name ? '<br><small>' + esc(t.vendor_name) + '</small>' : '') + '</td>' +
         '<td><small>' + typeLabel + '</small></td>' +
         '<td>' + statusBadge(t.category.toLowerCase()) + '</td>' +
         '<td style="font-family:JetBrains Mono,monospace;font-weight:700;' + (t.category === "INCOME" ? "color:#2E7D32;" : t.category === "EXPENSE" ? "color:#C62828;" : "") + '">' + fmt(t.amount) + '</td>' +
@@ -1830,12 +986,11 @@
         '<td><small>' + (t.payment_method || "—").replace(/_/g, " ") + '</small></td>' +
         '<td>' + (t.is_verified ? '<span class="status-badge green">Verified</span>' : '<span class="status-badge yellow">Pending</span>') + '</td>' +
         '<td><div class="action-btns">' +
-          '<button class="btn-sm blue" onclick="window.viewTransaction(\'' + t.id + '\')" title="View"><i data-lucide="eye"></i></button>' +
-          '<button class="btn-sm blue" onclick="window.editTransaction(\'' + t.id + '\')" title="Edit"><i data-lucide="edit-3"></i></button>' +
-          (t.is_verified ? '' : '<button class="btn-sm green" onclick="window.verifyTransaction(\'' + t.id + '\')" title="Verify"><i data-lucide="check"></i></button>') +
-          '<button class="btn-sm red" onclick="window.deleteItem(\'treasury_transactions\',\'' + t.id + '\')" title="Delete"><i data-lucide="trash-2"></i></button>' +
-        '</div></td>' +
-      '</tr>';
+          '<button class="btn-sm blue" onclick="window.viewTransaction(\'' + t.id + '\')"><i data-lucide="eye"></i></button>' +
+          '<button class="btn-sm blue" onclick="window.editTransaction(\'' + t.id + '\')"><i data-lucide="edit-3"></i></button>' +
+          (t.is_verified ? '' : '<button class="btn-sm green" onclick="window.verifyTransaction(\'' + t.id + '\')"><i data-lucide="check"></i></button>') +
+          '<button class="btn-sm red" onclick="window.deleteItem(\'treasury_transactions\',\'' + t.id + '\')"><i data-lucide="trash-2"></i></button>' +
+        '</div></td></tr>';
     }).join("");
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
@@ -1844,31 +999,23 @@
     const db = getDb();
     if (!db) return;
     const { data: heads } = await db.from("budget_heads").select("*").order("sort_order");
-    const { data: txns } = await db.from("treasury_transactions").select("budget_head,category,net_amount");
+    const { data: txns } = await db.from("treasury_transactions").select("budget_head,net_amount");
     if (!heads) return;
-
     const actualByHead = {};
     (txns || []).forEach(t => {
-      if (t.budget_head) {
-        actualByHead[t.budget_head] = (actualByHead[t.budget_head] || 0) + Number(t.net_amount);
-      }
+      if (t.budget_head) actualByHead[t.budget_head] = (actualByHead[t.budget_head] || 0) + Math.abs(Number(t.net_amount));
     });
-
     const container = $("#budgetVarianceTable");
     if (!container) return;
-
     const fmt = (v) => "₹" + Math.abs(Number(v) || 0).toLocaleString("en-IN");
-
-    let html = '<table class="budget-variance-table"><thead><tr><th>Budget Head</th><th>Category</th><th>Allocated</th><th>Actual</th><th>Variance</th><th>Utilization</th></tr></thead><tbody>';
-
+    let html = '<table class="budget-variance-table"><thead><tr><th>Budget Head</th><th>Cat</th><th>Allocated</th><th>Actual</th><th>Variance</th><th>Utilization</th></tr></thead><tbody>';
     heads.forEach(h => {
       const allocated = Number(h.allocated_amount) || 0;
       const actual = Math.abs(actualByHead[h.head_name] || 0);
       const variance = allocated - actual;
       const pct = allocated > 0 ? Math.round((actual / allocated) * 100) : 0;
       const isOver = variance < 0;
-      const catBadge = h.category === "INCOME" ? '<span class="status-badge green">Income</span>' : '<span class="status-badge red">Expense</span>';
-
+      const catBadge = h.category === "INCOME" ? '<span class="status-badge green">Inc</span>' : '<span class="status-badge red">Exp</span>';
       html += '<tr>' +
         '<td><strong>' + esc(h.head_name) + '</strong></td>' +
         '<td>' + catBadge + '</td>' +
@@ -1878,45 +1025,36 @@
         '<td><div class="variance-bar"><div class="variance-bar-fill ' + (pct > 100 ? "over" : "under") + '" style="width:' + Math.min(pct, 100) + '%"></div></div><small>' + pct + '%</small></td>' +
       '</tr>';
     });
-
     html += '</tbody></table>';
     container.innerHTML = html;
   }
 
-  // Transaction form
   function getTransactionFormHtml(d) {
-    const types = [
-      'REGISTRATION_FEE','SPONSOR','DONATION','REFUND','VENUE_EXPENSE','FOOD_EXPENSE','TRANSPORT_EXPENSE',
-      'MERCHANDISE_EXPENSE','EQUIPMENT_EXPENSE','MARKETING_EXPENSE','PERMIT_EXPENSE','INSURANCE_EXPENSE',
-      'MISCELLANEOUS_EXPENSE','PRIZE_EXPENSE','CERTIFICATE_EXPENSE','OTHER_INCOME','OTHER_EXPENSE',
-      'ADVANCE_RECEIVED','ADVANCE_PAID','ADJUSTMENT'
-    ];
+    const types = ['REGISTRATION_FEE','SPONSOR','DONATION','REFUND','VENUE_EXPENSE','FOOD_EXPENSE','TRANSPORT_EXPENSE','MERCHANDISE_EXPENSE','EQUIPMENT_EXPENSE','MARKETING_EXPENSE','PERMIT_EXPENSE','INSURANCE_EXPENSE','MISCELLANEOUS_EXPENSE','PRIZE_EXPENSE','CERTIFICATE_EXPENSE','OTHER_INCOME','OTHER_EXPENSE','ADVANCE_RECEIVED','ADVANCE_PAID','ADJUSTMENT'];
     const methods = ['BANK_TRANSFER','UPI','CASH','CHEQUE','CARD','ONLINE','INTERNAL'];
-
     return '<div class="trs-form-grid">' +
       '<div class="form-group"><label>Transaction Type *</label><select id="trsType" onchange="window.autoCategory()">' +
         types.map(t => '<option value="' + t + '"' + (d?.transaction_type === t ? " selected" : "") + '>' + t.replace(/_/g, " ") + '</option>').join("") +
       '</select></div>' +
-      '<div class="form-group"><label>Category</label><select id="trsCat" onchange="window.calcNetAmount()">' +
+      '<div class="form-group"><label>Category</label><select id="trsCat">' +
         ["INCOME","EXPENSE","ADJUSTMENT"].map(c => '<option value="' + c + '"' + (d?.category === c ? " selected" : "") + '>' + c + '</option>').join("") +
       '</select></div>' +
-      '<div class="form-group full-width"><label>Description *</label><input id="trsDesc" value="' + esc(d?.description || "") + '" placeholder="Brief description of transaction"/></div>' +
+      '<div class="form-group full-width"><label>Description *</label><input id="trsDesc" value="' + esc(d?.description || "") + '" placeholder="Brief description"/></div>' +
       '<div class="form-group"><label>Amount (₹) *</label><input type="number" id="trsAmount" value="' + (d?.amount || "") + '" step="0.01" min="0" onchange="window.calcNetAmount()" placeholder="0.00"/></div>' +
-      '<div class="form-group"><label>GST Amount (₹)</label><input type="number" id="trsGstAmt" value="' + (d?.gst_amount || 0) + '" step="0.01" min="0" onchange="window.calcNetAmount()" placeholder="0.00"/></div>' +
-      '<div class="form-group"><label>TDS Amount (₹)</label><input type="number" id="trsTdsAmt" value="' + (d?.tds_amount || 0) + '" step="0.01" min="0" onchange="window.calcNetAmount()" placeholder="0.00"/></div>' +
+      '<div class="form-group"><label>GST (₹)</label><input type="number" id="trsGstAmt" value="' + (d?.gst_amount || 0) + '" step="0.01" min="0" onchange="window.calcNetAmount()"/></div>' +
+      '<div class="form-group"><label>TDS (₹)</label><input type="number" id="trsTdsAmt" value="' + (d?.tds_amount || 0) + '" step="0.01" min="0" onchange="window.calcNetAmount()"/></div>' +
       '<div class="form-group"><label>Net Amount (₹)</label><input type="number" id="trsNetAmt" value="' + (d?.net_amount || "") + '" readonly style="font-weight:900;color:#2E7D32;"/></div>' +
-      '<div class="form-group"><label>Payment Method</label><select id="trsMethod">' +
-        '<option value="">Select Method</option>' +
+      '<div class="form-group"><label>Payment Method</label><select id="trsMethod"><option value="">Select</option>' +
         methods.map(m => '<option value="' + m + '"' + (d?.payment_method === m ? " selected" : "") + '>' + m.replace(/_/g, " ") + '</option>').join("") +
       '</select></div>' +
-      '<div class="form-group"><label>Payment Reference / UTR</label><input id="trsPayRef" value="' + esc(d?.payment_reference || "") + '" placeholder="UTR / Cheque No."/></div>' +
-      '<div class="form-group"><label>Reference Number</label><input id="trsRefNum" value="' + esc(d?.reference_number || "") + '" placeholder="Internal reference"/></div>' +
-      '<div class="form-group"><label>Budget Head</label><select id="trsBudgetHead"><option value="">Select Head</option></select></div>' +
-      '<div class="form-group"><label>Vendor / Party Name</label><input id="trsVendor" value="' + esc(d?.vendor_name || "") + '"/></div>' +
+      '<div class="form-group"><label>Payment Ref / UTR</label><input id="trsPayRef" value="' + esc(d?.payment_reference || "") + '"/></div>' +
+      '<div class="form-group"><label>Reference No</label><input id="trsRefNum" value="' + esc(d?.reference_number || "") + '"/></div>' +
+      '<div class="form-group"><label>Budget Head</label><select id="trsBudgetHead"><option value="">Select</option></select></div>' +
+      '<div class="form-group"><label>Vendor</label><input id="trsVendor" value="' + esc(d?.vendor_name || "") + '"/></div>' +
       '<div class="form-group"><label>Vendor Contact</label><input id="trsVendorContact" value="' + esc(d?.vendor_contact || "") + '"/></div>' +
-      '<div class="form-group"><label>Invoice Number</label><input id="trsInvoice" value="' + esc(d?.invoice_number || "") + '"/></div>' +
+      '<div class="form-group"><label>Invoice No</label><input id="trsInvoice" value="' + esc(d?.invoice_number || "") + '"/></div>' +
       '<div class="form-group"><label>Date</label><input type="date" id="trsDate" value="' + (d?.transaction_date ? d.transaction_date.substring(0,10) : new Date().toISOString().substring(0,10)) + '"/></div>' +
-      '<div class="form-group full-width"><label>Notes</label><textarea id="trsNotes" rows="3">' + esc(d?.notes || "") + '</textarea></div>' +
+      '<div class="form-group full-width"><label>Notes</label><textarea id="trsNotes" rows="2">' + esc(d?.notes || "") + '</textarea></div>' +
     '</div>' +
     '<div class="trs-amount-preview"><div class="label">Net Amount</div><div class="value" id="trsNetPreview">₹0</div></div>';
   }
@@ -1927,32 +1065,30 @@
     if (type.includes("EXPENSE") || type === "REFUND" || type === "ADVANCE_PAID") cat.value = "EXPENSE";
     else if (type === "ADJUSTMENT") cat.value = "ADJUSTMENT";
     else cat.value = "INCOME";
-    window.calcNetAmount();
   };
 
   window.calcNetAmount = function () {
-    const amount = parseFloat($("#trsAmount")?.value) || 0;
-    const gst = parseFloat($("#trsGstAmt")?.value) || 0;
-    const tds = parseFloat($("#trsTdsAmt")?.value) || 0;
+    const amount = parseFloat($("#trsAmount").value) || 0;
+    const gst = parseFloat($("#trsGstAmt").value) || 0;
+    const tds = parseFloat($("#trsTdsAmt").value) || 0;
     const net = amount + gst - tds;
-    const netEl = $("#trsNetAmt");
-    if (netEl) netEl.value = net.toFixed(2);
+    $("#trsNetAmt").value = net.toFixed(2);
     const preview = $("#trsNetPreview");
     if (preview) preview.textContent = "₹" + net.toLocaleString("en-IN", { minimumFractionDigits: 2 });
   };
 
-  async function loadBudgetHeadOptions(selected) {
+  async function loadBudgetHeadOptions() {
     const db = getDb();
     if (!db) return;
     const { data } = await db.from("budget_heads").select("head_name").order("sort_order");
     const sel = $("#trsBudgetHead");
     if (sel && data) {
-      sel.innerHTML = '<option value="">Select Head</option>' + data.map(h => '<option value="' + h.head_name + '"' + (selected === h.head_name ? " selected" : "") + '>' + h.head_name + '</option>').join("");
+      sel.innerHTML = '<option value="">Select Head</option>' + data.map(h => '<option value="' + h.head_name + '">' + h.head_name + '</option>').join("");
     }
   }
 
   $("#addTransactionBtn")?.addEventListener("click", () => {
-    openModal("New Transaction", getTransactionFormHtml(), '<button class="btn btn-primary" onclick="window.saveNewTransaction()"><i data-lucide="save"></i> Save Transaction</button>', "large");
+    openModal("New Transaction", getTransactionFormHtml(), '<button class="btn btn-primary" onclick="window.saveNewTransaction()">Save</button>', "large");
     setTimeout(() => { loadBudgetHeadOptions(); window.calcNetAmount(); }, 100);
   });
 
@@ -1961,8 +1097,7 @@
     if (!db) return;
     const desc = $("#trsDesc").value.trim();
     const amount = parseFloat($("#trsAmount").value);
-    if (!desc || isNaN(amount) || amount <= 0) { showToast("Enter valid description and amount", "error"); return; }
-
+    if (!desc || isNaN(amount) || amount <= 0) { showToast("Enter description and amount", "error"); return; }
     showLoading("Saving...");
     try {
       await db.from("treasury_transactions").insert({
@@ -1984,8 +1119,8 @@
         transaction_date: $("#trsDate").value ? new Date($("#trsDate").value).toISOString() : new Date().toISOString(),
         created_by: currentAdmin.id
       });
-      logAction("CREATE", "treasury", null, "New transaction: " + desc + " ₹" + amount);
-      closeModal(); hideLoading(); showToast("Transaction saved!"); loadTreasury();
+      logAction("CREATE", "treasury", null, desc + " ₹" + amount);
+      closeModal(); hideLoading(); showToast("Saved!"); loadTreasury();
     } catch (err) { hideLoading(); showToast("Failed: " + err.message, "error"); }
   };
 
@@ -1994,9 +1129,10 @@
     const { data } = await db.from("treasury_transactions").select("*").eq("id", id).single();
     if (!data) return;
     openModal("Edit Transaction", getTransactionFormHtml(data),
-      '<button class="btn btn-primary" onclick="window.updateTransaction(\'' + id + '\')"><i data-lucide="save"></i> Update</button>', "large");
+      '<button class="btn btn-primary" onclick="window.updateTransaction(\'' + id + '\')">Update</button>', "large");
     setTimeout(() => {
-      loadBudgetHeadOptions(data.budget_head);
+      loadBudgetHeadOptions();
+      if (data.budget_head) setTimeout(() => { const sel = $("#trsBudgetHead"); if (sel) sel.value = data.budget_head; }, 300);
       window.calcNetAmount();
     }, 100);
   };
@@ -2004,7 +1140,7 @@
   window.updateTransaction = async function (id) {
     const db = getDb();
     if (!db) return;
-    showLoading("Updating...");
+    showLoading();
     try {
       await db.from("treasury_transactions").update({
         transaction_type: $("#trsType").value,
@@ -2024,7 +1160,7 @@
         notes: $("#trsNotes").value || null,
         transaction_date: $("#trsDate").value ? new Date($("#trsDate").value).toISOString() : undefined
       }).eq("id", id);
-      logAction("UPDATE", "treasury", id, "Transaction updated");
+      logAction("UPDATE", "treasury", id, "Updated");
       closeModal(); hideLoading(); showToast("Updated!"); loadTreasury();
     } catch (err) { hideLoading(); showToast("Failed", "error"); }
   };
@@ -2042,7 +1178,7 @@
         '<div><strong>Amount:</strong> ' + fmt(t.amount) + '</div>' +
         '<div><strong>GST:</strong> ' + fmt(t.gst_amount) + '</div>' +
         '<div><strong>TDS:</strong> ' + fmt(t.tds_amount) + '</div>' +
-        '<div><strong>Net Amount:</strong> <span style="font-weight:900;color:#2E7D32;font-size:1.1rem;">' + fmt(t.net_amount) + '</span></div>' +
+        '<div><strong>Net:</strong> <span style="font-weight:900;color:#2E7D32;font-size:1.1rem;">' + fmt(t.net_amount) + '</span></div>' +
         '<div><strong>Method:</strong> ' + (t.payment_method || "—").replace(/_/g, " ") + '</div>' +
         '<div><strong>Payment Ref:</strong> ' + esc(t.payment_reference || "—") + '</div>' +
         '<div><strong>Reference:</strong> ' + esc(t.reference_number || "—") + '</div>' +
@@ -2057,28 +1193,24 @@
   window.verifyTransaction = async function (id) {
     const db = getDb();
     await db.from("treasury_transactions").update({ is_verified: true, verified_by: currentAdmin.id, verified_at: new Date().toISOString() }).eq("id", id);
-    logAction("VERIFY", "treasury", id, "Transaction verified");
+    logAction("VERIFY", "treasury", id, "Verified");
     showToast("Verified!"); loadTreasury();
   };
 
-  // Sync Registration Revenue
-  $("#syncRegRevenue")?.addEventListener("click", async () => {
+  $("#syncRegRevenue")?.addEventListener("click", () => {
     const db = getDb();
     if (!db) return;
-    confirmAction("Sync Registration Revenue", "Calculate total approved registration fees and create/update an income transaction?", async () => {
+    confirmAction("Sync Registration Revenue", "Calculate approved registrations and create/update income transaction?", async () => {
       showLoading("Syncing...");
       try {
         const { count: memberCount } = await db.from("members").select("*", { count: "exact", head: true }).eq("status", "approved");
         const { count: dcCount } = await db.from("district_council_registrations").select("*", { count: "exact", head: true }).eq("status", "approved");
         const total = ((memberCount || 0) + (dcCount || 0)) * 3000;
-
-        const { data: existing } = await db.from("treasury_transactions")
-          .select("id").eq("transaction_type", "REGISTRATION_FEE").eq("reference_number", "AUTO_SYNC").maybeSingle();
-
+        const { data: existing } = await db.from("treasury_transactions").select("id").eq("transaction_type", "REGISTRATION_FEE").eq("reference_number", "AUTO_SYNC").maybeSingle();
         const txnData = {
           transaction_type: "REGISTRATION_FEE",
           category: "INCOME",
-          description: "Registration fees — " + (memberCount || 0) + " members + " + (dcCount || 0) + " DC = " + ((memberCount || 0) + (dcCount || 0)) + " approved × ₹3,000",
+          description: "Registration fees — " + (memberCount || 0) + " members + " + (dcCount || 0) + " DC × ₹3,000",
           reference_number: "AUTO_SYNC",
           amount: total,
           net_amount: total,
@@ -2089,43 +1221,33 @@
           verified_at: new Date().toISOString(),
           created_by: currentAdmin.id
         };
-
-        if (existing) {
-          await db.from("treasury_transactions").update(txnData).eq("id", existing.id);
-        } else {
-          await db.from("treasury_transactions").insert(txnData);
-        }
-
-        logAction("SYNC", "treasury", null, "Registration revenue synced: ₹" + total.toLocaleString("en-IN"));
+        if (existing) await db.from("treasury_transactions").update(txnData).eq("id", existing.id);
+        else await db.from("treasury_transactions").insert(txnData);
+        logAction("SYNC", "treasury", null, "Revenue: ₹" + total.toLocaleString("en-IN"));
         hideLoading(); showToast("Synced! ₹" + total.toLocaleString("en-IN")); loadTreasury();
       } catch (err) { hideLoading(); showToast("Sync failed", "error"); }
     });
   });
 
-  // Treasury Filters
-  function initTreasuryFilters() {
-    const trsSearch = $("#trsSearch"), trsCatF = $("#trsCategoryFilter"), trsVerF = $("#trsVerifiedFilter");
-    const filterTreasury = debounce(() => {
-      if (!window._cache.treasury) return;
-      const q = (trsSearch?.value || "").toLowerCase();
-      const cat = trsCatF?.value || "";
-      const ver = trsVerF?.value || "";
-      renderTreasuryTable(window._cache.treasury.filter(t =>
-        (!q || t.description.toLowerCase().includes(q) || (t.vendor_name || "").toLowerCase().includes(q) || (t.reference_number || "").toLowerCase().includes(q)) &&
-        (!cat || t.category === cat) &&
-        (!ver || String(t.is_verified) === ver)
-      ));
-    }, 200);
-    trsSearch?.addEventListener("input", filterTreasury);
-    trsCatF?.addEventListener("change", filterTreasury);
-    trsVerF?.addEventListener("change", filterTreasury);
-  }
+  const trsSearch = $("#trsSearch"), trsCatF = $("#trsCategoryFilter"), trsVerF = $("#trsVerifiedFilter");
+  const filterTreasury = debounce(() => {
+    if (!window._cache.treasury) return;
+    const q = (trsSearch?.value || "").toLowerCase();
+    const cat = trsCatF?.value || "";
+    const ver = trsVerF?.value || "";
+    renderTreasuryTable(window._cache.treasury.filter(t =>
+      (!q || t.description.toLowerCase().includes(q) || (t.vendor_name || "").toLowerCase().includes(q) || (t.reference_number || "").toLowerCase().includes(q)) &&
+      (!cat || t.category === cat) &&
+      (!ver || String(t.is_verified) === ver)
+    ));
+  }, 200);
+  trsSearch?.addEventListener("input", filterTreasury);
+  trsCatF?.addEventListener("change", filterTreasury);
+  trsVerF?.addEventListener("change", filterTreasury);
 
-  // Export dropdown toggle
-  $("#exportTreasuryBtn")?.addEventListener("click", (e) => {
-    e.stopPropagation();
+  $("#exportTreasuryBtn")?.addEventListener("click", () => {
     const dd = $("#exportDropdown");
-    if (dd) dd.style.display = dd.style.display === "none" ? "block" : "none";
+    if (dd) dd.style.display = dd.style.display === "block" ? "none" : "block";
   });
 
   document.addEventListener("click", (e) => {
@@ -2134,7 +1256,7 @@
     if (dd && btn && !btn.contains(e.target) && !dd.contains(e.target)) dd.style.display = "none";
   });
 
-  // ==================== TREASURY EXPORT FUNCTIONS ====================
+  // ==================== EXPORT FUNCTIONS ====================
   window.exportLedger = function () {
     exportExcel((window._cache.treasury || []).map(t => ({
       Date: formatDate(t.transaction_date, false),
@@ -2182,10 +1304,10 @@
     });
     const data = Object.entries(byType).map(([type, v]) => ({
       "Expense Type": type.replace(/_/g, " "),
-      "Transaction Count": v.count,
-      "Total Amount": v.total
+      "Count": v.count,
+      "Total": v.total
     }));
-    data.push({ "Expense Type": "GRAND TOTAL", "Transaction Count": expenses.length, "Total Amount": expenses.reduce((s, t) => s + Number(t.net_amount), 0) });
+    data.push({ "Expense Type": "GRAND TOTAL", "Count": expenses.length, "Total": expenses.reduce((s, t) => s + Number(t.net_amount), 0) });
     exportExcel(data, "Expense_Report");
   };
 
@@ -2274,7 +1396,530 @@
     exportExcel(data, "Bank_Reconciliation");
   };
 
-  // ==================== SEARCH & FILTERS ====================
+  // ==================== SIMPLE CRUD SECTIONS ====================
+  async function loadSiteContentEditor() {
+    const db = getDb();
+    const { data } = await db.from("site_content").select("*").order("section_key");
+    const c = $("#siteContentList");
+    if (!c || !data) return;
+    c.innerHTML = data.map(s =>
+      '<div class="content-editor-card">' +
+        '<div class="content-editor-header"><h4>' + esc(s.section_key) + '</h4>' +
+        '<button class="btn-sm blue" onclick="window.editSiteContent(\'' + s.id + '\',\'' + s.section_key + '\')"><i data-lucide="edit-3"></i></button></div>' +
+        '<p><strong>Title:</strong> ' + esc(s.title || "—") + '</p>' +
+        '<p>' + esc((s.content || "").substring(0, 120)) + '...</p>' +
+      '</div>'
+    ).join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  window.editSiteContent = async function (id, key) {
+    const db = getDb();
+    const { data } = await db.from("site_content").select("*").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit: " + key,
+      '<div class="form-group"><label>Title</label><input id="eT" value="' + esc(data.title || "") + '"/></div>' +
+      '<div class="form-group"><label>Content</label><textarea id="eC" rows="5">' + esc(data.content || "") + '</textarea></div>' +
+      '<div class="form-group"><label>Extra JSON</label><textarea id="eE" rows="6" style="font-family:monospace;">' + JSON.stringify(data.extra_data || {}, null, 2) + '</textarea></div>',
+      '<button class="btn btn-primary" onclick="window.saveSiteContent(\'' + id + '\')">Save</button>', "large");
+  };
+
+  window.saveSiteContent = async function (id) {
+    let extra = {};
+    try { extra = JSON.parse($("#eE").value); } catch { showToast("Invalid JSON", "error"); return; }
+    const db = getDb();
+    await db.from("site_content").update({ title: $("#eT").value, content: $("#eC").value, extra_data: extra, updated_by: currentAdmin.id }).eq("id", id);
+    logAction("UPDATE", "site_content", id, "Updated");
+    closeModal(); showToast("Saved!"); loadSiteContentEditor();
+  };
+
+  async function loadAgendaEditor() {
+    const db = getDb();
+    const { data } = await db.from("agenda").select("*").order("day_number").order("sort_order");
+    const tb = $("#agendaTable tbody");
+    if (!tb) return;
+    tb.innerHTML = (data || []).map(a =>
+      '<tr><td>Day ' + a.day_number + '</td><td>' + a.time_slot + '</td><td>' + esc(a.title) + '</td>' +
+      '<td>' + esc(a.location || "—") + '</td><td>' + a.sort_order + '</td>' +
+      '<td>' + (a.is_active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge gray">Hidden</span>') + '</td>' +
+      '<td><div class="action-btns"><button class="btn-sm blue" onclick="window.editAgenda(\'' + a.id + '\')"><i data-lucide="edit-3"></i></button>' +
+      '<button class="btn-sm red" onclick="window.deleteItem(\'agenda\',\'' + a.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
+    ).join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  $("#addAgendaBtn")?.addEventListener("click", () => {
+    openModal("Add Agenda",
+      '<div class="form-grid"><div class="form-group"><label>Day</label><select id="aD"><option value="1">Day 1</option><option value="2">Day 2</option></select></div>' +
+      '<div class="form-group"><label>Time</label><input id="aT"/></div>' +
+      '<div class="form-group"><label>Title</label><input id="aTi"/></div>' +
+      '<div class="form-group"><label>Location</label><input id="aL"/></div>' +
+      '<div class="form-group full-width"><label>Description</label><textarea id="aDe" rows="3"></textarea></div>' +
+      '<div class="form-group"><label>Order</label><input type="number" id="aO" value="0"/></div></div>',
+      '<button class="btn btn-primary" onclick="window.createAgenda()">Create</button>');
+  });
+
+  window.createAgenda = async function () {
+    const db = getDb();
+    await db.from("agenda").insert({
+      day_number: parseInt($("#aD").value), time_slot: $("#aT").value,
+      title: $("#aTi").value, location: $("#aL").value, description: $("#aDe").value,
+      sort_order: parseInt($("#aO").value) || 0,
+      event_date: $("#aD").value === "1" ? "2026-12-12" : "2026-12-13"
+    });
+    closeModal(); showToast("Added!"); loadAgendaEditor();
+  };
+
+  window.editAgenda = async function (id) {
+    const db = getDb();
+    const { data } = await db.from("agenda").select("*").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit Agenda",
+      '<div class="form-grid"><div class="form-group"><label>Day</label><select id="aD"><option value="1"' + (data.day_number === 1 ? " selected" : "") + '>1</option><option value="2"' + (data.day_number === 2 ? " selected" : "") + '>2</option></select></div>' +
+      '<div class="form-group"><label>Time</label><input id="aT" value="' + data.time_slot + '"/></div>' +
+      '<div class="form-group"><label>Title</label><input id="aTi" value="' + esc(data.title) + '"/></div>' +
+      '<div class="form-group"><label>Location</label><input id="aL" value="' + esc(data.location || "") + '"/></div>' +
+      '<div class="form-group full-width"><label>Desc</label><textarea id="aDe" rows="3">' + esc(data.description || "") + '</textarea></div>' +
+      '<div class="form-group"><label>Order</label><input type="number" id="aO" value="' + data.sort_order + '"/></div></div>',
+      '<button class="btn btn-primary" onclick="window.saveAgenda(\'' + id + '\')">Save</button>');
+  };
+
+  window.saveAgenda = async function (id) {
+    const db = getDb();
+    await db.from("agenda").update({
+      day_number: parseInt($("#aD").value), time_slot: $("#aT").value,
+      title: $("#aTi").value, location: $("#aL").value, description: $("#aDe").value,
+      sort_order: parseInt($("#aO").value) || 0
+    }).eq("id", id);
+    closeModal(); showToast("Saved!"); loadAgendaEditor();
+  };
+
+  async function loadColourHuntEditor() {
+    const db = getDb();
+    const { data } = await db.from("colour_hunt").select("*").order("sort_order");
+    const c = $("#colourHuntList");
+    if (!c) return;
+    if (!data || !data.length) { c.innerHTML = '<p style="text-align:center;padding:24px;color:#999;">No challenges yet.</p>'; return; }
+    c.innerHTML = data.map(x => '<div class="content-editor-card"><h4>' + esc(x.title) + '</h4><p>' + esc((x.description || "").substring(0, 150)) + '...</p><button class="btn-sm blue" onclick="window.editColourHunt(\'' + x.id + '\')"><i data-lucide="edit-3"></i> Edit</button></div>').join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  $("#addColourHuntBtn")?.addEventListener("click", () => {
+    openModal("Add Colour Hunt",
+      '<div class="form-group"><label>Title</label><input id="cT"/></div>' +
+      '<div class="form-group"><label>Description</label><textarea id="cD" rows="4"></textarea></div>' +
+      '<div class="form-group"><label>Rules</label><textarea id="cR" rows="5"></textarea></div>' +
+      '<div class="form-group"><label>Hashtags</label><input id="cH"/></div>',
+      '<button class="btn btn-primary" onclick="window.createColourHunt()">Create</button>');
+  });
+
+  window.createColourHunt = async function () {
+    const db = getDb();
+    await db.from("colour_hunt").insert({ title: $("#cT").value, description: $("#cD").value, rules: $("#cR").value, hashtags: $("#cH").value });
+    closeModal(); showToast("Added!"); loadColourHuntEditor();
+  };
+
+  window.editColourHunt = async function (id) {
+    const db = getDb();
+    const { data } = await db.from("colour_hunt").select("*").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit Colour Hunt",
+      '<div class="form-group"><label>Title</label><input id="cT" value="' + esc(data.title) + '"/></div>' +
+      '<div class="form-group"><label>Description</label><textarea id="cD" rows="4">' + esc(data.description) + '</textarea></div>' +
+      '<div class="form-group"><label>Rules</label><textarea id="cR" rows="5">' + esc(data.rules || "") + '</textarea></div>' +
+      '<div class="form-group"><label>Hashtags</label><input id="cH" value="' + esc(data.hashtags || "") + '"/></div>',
+      '<button class="btn btn-primary" onclick="window.saveColourHunt(\'' + id + '\')">Save</button>');
+  };
+
+  window.saveColourHunt = async function (id) {
+    const db = getDb();
+    await db.from("colour_hunt").update({ title: $("#cT").value, description: $("#cD").value, rules: $("#cR").value, hashtags: $("#cH").value }).eq("id", id);
+    closeModal(); showToast("Saved!"); loadColourHuntEditor();
+  };
+
+  async function loadTreasureEditor() {
+    const db = getDb();
+    const { data } = await db.from("treasure_hunt").select("*").order("sort_order");
+    const tb = $("#treasureTable tbody");
+    if (!tb) return;
+    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;">No clues</td></tr>'; return; }
+    tb.innerHTML = data.map(c =>
+      '<tr><td>' + c.clue_number + '</td><td>' + esc(c.clue_title) + '</td><td>Group ' + (c.group_number || "All") + '</td>' +
+      '<td>' + esc((c.clue_text || "").substring(0, 60)) + '...</td>' +
+      '<td>' + (c.is_revealed ? '<span class="status-badge green">Revealed</span>' : '<span class="status-badge gray">Hidden</span>') + '</td>' +
+      '<td><div class="action-btns"><button class="btn-sm green" onclick="window.toggleClue(\'' + c.id + '\',' + !c.is_revealed + ')"><i data-lucide="' + (c.is_revealed ? "eye-off" : "eye") + '"></i></button>' +
+      '<button class="btn-sm blue" onclick="window.editTreasure(\'' + c.id + '\')"><i data-lucide="edit-3"></i></button>' +
+      '<button class="btn-sm red" onclick="window.deleteItem(\'treasure_hunt\',\'' + c.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
+    ).join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  $("#addTreasureBtn")?.addEventListener("click", () => {
+    openModal("Add Clue",
+      '<div class="form-grid"><div class="form-group"><label>Clue #</label><input type="number" id="tN" value="1"/></div>' +
+      '<div class="form-group"><label>Title</label><input id="tT"/></div>' +
+      '<div class="form-group full-width"><label>Text</label><textarea id="tX" rows="3"></textarea></div>' +
+      '<div class="form-group"><label>Hint</label><input id="tH"/></div>' +
+      '<div class="form-group"><label>Group</label><select id="tG"><option value="">All</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div></div>',
+      '<button class="btn btn-primary" onclick="window.createTreasure()">Create</button>');
+  });
+
+  window.createTreasure = async function () {
+    const db = getDb();
+    await db.from("treasure_hunt").insert({
+      clue_number: parseInt($("#tN").value) || 1, clue_title: $("#tT").value,
+      clue_text: $("#tX").value, hint: $("#tH").value,
+      group_number: $("#tG").value ? parseInt($("#tG").value) : null
+    });
+    closeModal(); showToast("Added!"); loadTreasureEditor();
+  };
+
+  window.toggleClue = async function (id, reveal) {
+    const db = getDb();
+    await db.from("treasure_hunt").update({ is_revealed: reveal }).eq("id", id);
+    showToast(reveal ? "Revealed!" : "Hidden");
+    loadTreasureEditor();
+  };
+
+  window.editTreasure = async function (id) {
+    const db = getDb();
+    const { data } = await db.from("treasure_hunt").select("*").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit Clue",
+      '<div class="form-grid"><div class="form-group"><label>#</label><input type="number" id="tN" value="' + data.clue_number + '"/></div>' +
+      '<div class="form-group"><label>Title</label><input id="tT" value="' + esc(data.clue_title) + '"/></div>' +
+      '<div class="form-group full-width"><label>Text</label><textarea id="tX" rows="3">' + esc(data.clue_text) + '</textarea></div>' +
+      '<div class="form-group"><label>Hint</label><input id="tH" value="' + esc(data.hint || "") + '"/></div>' +
+      '<div class="form-group"><label>Group</label><select id="tG"><option value="">All</option>' +
+      [1,2,3,4].map(g => '<option value="' + g + '"' + (data.group_number === g ? " selected" : "") + '>' + g + '</option>').join("") +
+      '</select></div></div>',
+      '<button class="btn btn-primary" onclick="window.saveTreasure(\'' + id + '\')">Save</button>');
+  };
+
+  window.saveTreasure = async function (id) {
+    const db = getDb();
+    await db.from("treasure_hunt").update({
+      clue_number: parseInt($("#tN").value), clue_title: $("#tT").value,
+      clue_text: $("#tX").value, hint: $("#tH").value,
+      group_number: $("#tG").value ? parseInt($("#tG").value) : null
+    }).eq("id", id);
+    closeModal(); showToast("Saved!"); loadTreasureEditor();
+  };
+
+  async function loadLeadersEditor() {
+    const db = getDb();
+    const { data } = await db.from("group_leaders").select("*").eq("is_active", true).order("group_number");
+    const tb = $("#leadersTable tbody");
+    if (!tb) return;
+    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;">No leaders</td></tr>'; return; }
+    tb.innerHTML = data.map(l =>
+      '<tr><td>Group ' + l.group_number + '</td><td>' + esc(l.leader_name) + '</td>' +
+      '<td>' + esc(l.leader_role) + '</td><td>' + esc(l.leader_club || "—") + '</td>' +
+      '<td>' + l.contact_number + '</td><td>' + (l.is_primary ? "Yes" : "No") + '</td>' +
+      '<td><div class="action-btns"><button class="btn-sm blue" onclick="window.editLeader(\'' + l.id + '\')"><i data-lucide="edit-3"></i></button>' +
+      '<button class="btn-sm red" onclick="window.deleteItem(\'group_leaders\',\'' + l.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
+    ).join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  $("#addLeaderBtn")?.addEventListener("click", () => {
+    openModal("Add Leader",
+      '<div class="form-grid"><div class="form-group"><label>Group</label><select id="lG"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>' +
+      '<div class="form-group"><label>Name</label><input id="lN"/></div>' +
+      '<div class="form-group"><label>Role</label><input id="lR"/></div>' +
+      '<div class="form-group"><label>Club</label><input id="lC"/></div>' +
+      '<div class="form-group"><label>Phone</label><input id="lP"/></div>' +
+      '<div class="form-group"><label>Email</label><input id="lE" type="email"/></div></div>',
+      '<button class="btn btn-primary" onclick="window.createLeader()">Create</button>');
+  });
+
+  window.createLeader = async function () {
+    const db = getDb();
+    await db.from("group_leaders").insert({
+      group_number: parseInt($("#lG").value), leader_name: $("#lN").value,
+      leader_role: $("#lR").value, leader_club: $("#lC").value,
+      contact_number: $("#lP").value, email: $("#lE").value
+    });
+    closeModal(); showToast("Added!"); loadLeadersEditor();
+  };
+
+  window.editLeader = async function (id) {
+    const db = getDb();
+    const { data } = await db.from("group_leaders").select("*").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit Leader",
+      '<div class="form-grid"><div class="form-group"><label>Group</label><select id="lG">' +
+      [1,2,3,4].map(g => '<option value="' + g + '"' + (data.group_number === g ? " selected" : "") + '>' + g + '</option>').join("") + '</select></div>' +
+      '<div class="form-group"><label>Name</label><input id="lN" value="' + esc(data.leader_name) + '"/></div>' +
+      '<div class="form-group"><label>Role</label><input id="lR" value="' + esc(data.leader_role) + '"/></div>' +
+      '<div class="form-group"><label>Club</label><input id="lC" value="' + esc(data.leader_club || "") + '"/></div>' +
+      '<div class="form-group"><label>Phone</label><input id="lP" value="' + data.contact_number + '"/></div>' +
+      '<div class="form-group"><label>Email</label><input id="lE" value="' + esc(data.email || "") + '"/></div></div>',
+      '<button class="btn btn-primary" onclick="window.saveLeader(\'' + id + '\')">Save</button>');
+  };
+
+  window.saveLeader = async function (id) {
+    const db = getDb();
+    await db.from("group_leaders").update({
+      group_number: parseInt($("#lG").value), leader_name: $("#lN").value,
+      leader_role: $("#lR").value, leader_club: $("#lC").value,
+      contact_number: $("#lP").value, email: $("#lE").value
+    }).eq("id", id);
+    closeModal(); showToast("Saved!"); loadLeadersEditor();
+  };
+
+  async function loadFoodEditor() {
+    const db = getDb();
+    const { data } = await db.from("food_menu").select("*").order("day_number").order("sort_order");
+    const tb = $("#foodTable tbody");
+    if (!tb) return;
+    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;">No items</td></tr>'; return; }
+    tb.innerHTML = data.map(f =>
+      '<tr><td>Day ' + f.day_number + '</td><td>' + f.meal_type + '</td>' +
+      '<td><span class="food-badge ' + (f.food_type === "VEG" ? "veg" : "nonveg") + '">' + f.food_type + '</span></td>' +
+      '<td>' + esc(f.item_name) + '</td><td>' + esc(f.description || "") + '</td>' +
+      '<td><div class="action-btns"><button class="btn-sm blue" onclick="window.editFood(\'' + f.id + '\')"><i data-lucide="edit-3"></i></button>' +
+      '<button class="btn-sm red" onclick="window.deleteItem(\'food_menu\',\'' + f.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
+    ).join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  const foodFormHtml = (d) => (
+    '<div class="form-grid"><div class="form-group"><label>Day</label><select id="fD">' +
+    '<option value="1"' + (d?.day_number === 1 ? " selected" : "") + '>1</option>' +
+    '<option value="2"' + (d?.day_number === 2 ? " selected" : "") + '>2</option></select></div>' +
+    '<div class="form-group"><label>Meal</label><select id="fM">' +
+    ["Breakfast","Lunch","Snacks","Dinner","Beverages"].map(x => '<option' + (d?.meal_type === x ? " selected" : "") + '>' + x + '</option>').join("") + '</select></div>' +
+    '<div class="form-group"><label>Type</label><select id="fT">' +
+    ["VEG","NON-VEG","COMMON"].map(x => '<option value="' + x + '"' + (d?.food_type === x ? " selected" : "") + '>' + x + '</option>').join("") + '</select></div>' +
+    '<div class="form-group"><label>Item</label><input id="fN" value="' + esc(d?.item_name || "") + '"/></div>' +
+    '<div class="form-group full-width"><label>Desc</label><input id="fDe" value="' + esc(d?.description || "") + '"/></div></div>'
+  );
+
+  $("#addFoodBtn")?.addEventListener("click", () => {
+    openModal("Add Food Item", foodFormHtml(), '<button class="btn btn-primary" onclick="window.createFood()">Create</button>');
+  });
+
+  window.createFood = async function () {
+    const db = getDb();
+    await db.from("food_menu").insert({
+      day_number: parseInt($("#fD").value), meal_type: $("#fM").value,
+      food_type: $("#fT").value, item_name: $("#fN").value, description: $("#fDe").value
+    });
+    closeModal(); showToast("Added!"); loadFoodEditor();
+  };
+
+  window.editFood = async function (id) {
+    const db = getDb();
+    const { data } = await db.from("food_menu").select("*").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit Food", foodFormHtml(data), '<button class="btn btn-primary" onclick="window.saveFood(\'' + id + '\')">Save</button>');
+  };
+
+  window.saveFood = async function (id) {
+    const db = getDb();
+    await db.from("food_menu").update({
+      day_number: parseInt($("#fD").value), meal_type: $("#fM").value,
+      food_type: $("#fT").value, item_name: $("#fN").value, description: $("#fDe").value
+    }).eq("id", id);
+    closeModal(); showToast("Saved!"); loadFoodEditor();
+  };
+
+  async function loadAnnouncementsEditor() {
+    const db = getDb();
+    const { data } = await db.from("announcements").select("*").order("created_at", { ascending: false });
+    const c = $("#announcementsList");
+    if (!c) return;
+    if (!data || !data.length) { c.innerHTML = '<p style="text-align:center;padding:24px;color:#999;">No announcements.</p>'; return; }
+    c.innerHTML = data.map(a =>
+      '<div class="content-editor-card"><div class="content-editor-header">' +
+      '<h4>' + esc(a.title) + ' <span class="status-badge ' + a.priority + '">' + a.priority + '</span></h4>' +
+      '<div class="action-btns"><button class="btn-sm blue" onclick="window.editAnnouncement(\'' + a.id + '\')"><i data-lucide="edit-3"></i></button>' +
+      '<button class="btn-sm red" onclick="window.deleteItem(\'announcements\',\'' + a.id + '\')"><i data-lucide="trash-2"></i></button></div></div>' +
+      '<p>' + esc(a.message) + '</p><small>' + (a.is_active ? "Active" : "Inactive") + ' · ' + (a.show_on_homepage ? "Homepage" : "Hidden") + '</small></div>'
+    ).join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  const annFormHtml = (d) => (
+    '<div class="form-group"><label>Title</label><input id="anT" value="' + esc(d?.title || "") + '"/></div>' +
+    '<div class="form-group"><label>Message</label><textarea id="anM" rows="4">' + esc(d?.message || "") + '</textarea></div>' +
+    '<div class="form-group"><label>Priority</label><select id="anP">' +
+    ["low","normal","high","urgent"].map(p => '<option value="' + p + '"' + (d?.priority === p ? " selected" : "") + '>' + p + '</option>').join("") + '</select></div>' +
+    '<div class="form-group"><label><input type="checkbox" id="anA"' + (d?.is_active !== false ? " checked" : "") + '/> Active</label></div>' +
+    '<div class="form-group"><label><input type="checkbox" id="anH"' + (d?.show_on_homepage !== false ? " checked" : "") + '/> Homepage</label></div>'
+  );
+
+  $("#addAnnouncementBtn")?.addEventListener("click", () => {
+    openModal("New Announcement", annFormHtml(), '<button class="btn btn-primary" onclick="window.createAnnouncement()">Create</button>');
+  });
+
+  window.createAnnouncement = async function () {
+    const db = getDb();
+    await db.from("announcements").insert({
+      title: $("#anT").value, message: $("#anM").value, priority: $("#anP").value,
+      is_active: $("#anA").checked, show_on_homepage: $("#anH").checked, created_by: currentAdmin.id
+    });
+    closeModal(); showToast("Created!"); loadAnnouncementsEditor();
+  };
+
+  window.editAnnouncement = async function (id) {
+    const db = getDb();
+    const { data } = await db.from("announcements").select("*").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit", annFormHtml(data), '<button class="btn btn-primary" onclick="window.saveAnnouncement(\'' + id + '\')">Save</button>');
+  };
+
+  window.saveAnnouncement = async function (id) {
+    const db = getDb();
+    await db.from("announcements").update({
+      title: $("#anT").value, message: $("#anM").value, priority: $("#anP").value,
+      is_active: $("#anA").checked, show_on_homepage: $("#anH").checked
+    }).eq("id", id);
+    closeModal(); showToast("Saved!"); loadAnnouncementsEditor();
+  };
+
+  async function loadFaqsEditor() {
+    const db = getDb();
+    const { data } = await db.from("faqs").select("*").order("sort_order");
+    const tb = $("#faqTable tbody");
+    if (!tb) return;
+    if (!data || !data.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;">No FAQs</td></tr>'; return; }
+    tb.innerHTML = data.map(f =>
+      '<tr><td>' + esc(f.question) + '</td><td>' + f.category + '</td><td>' + f.sort_order + '</td>' +
+      '<td>' + (f.is_active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge gray">Hidden</span>') + '</td>' +
+      '<td><div class="action-btns"><button class="btn-sm blue" onclick="window.editFaq(\'' + f.id + '\')"><i data-lucide="edit-3"></i></button>' +
+      '<button class="btn-sm red" onclick="window.deleteItem(\'faqs\',\'' + f.id + '\')"><i data-lucide="trash-2"></i></button></div></td></tr>'
+    ).join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  const faqFormHtml = (d) => (
+    '<div class="form-group"><label>Question</label><input id="fqQ" value="' + esc(d?.question || "") + '"/></div>' +
+    '<div class="form-group"><label>Answer</label><textarea id="fqA" rows="4">' + esc(d?.answer || "") + '</textarea></div>' +
+    '<div class="form-group"><label>Category</label><input id="fqC" value="' + (d?.category || "General") + '"/></div>' +
+    '<div class="form-group"><label>Order</label><input type="number" id="fqO" value="' + (d?.sort_order || 0) + '"/></div>'
+  );
+
+  $("#addFaqBtn")?.addEventListener("click", () => {
+    openModal("Add FAQ", faqFormHtml(), '<button class="btn btn-primary" onclick="window.createFaq()">Create</button>');
+  });
+
+  window.createFaq = async function () {
+    const db = getDb();
+    await db.from("faqs").insert({ question: $("#fqQ").value, answer: $("#fqA").value, category: $("#fqC").value, sort_order: parseInt($("#fqO").value) || 0 });
+    closeModal(); showToast("Added!"); loadFaqsEditor();
+  };
+
+  window.editFaq = async function (id) {
+    const db = getDb();
+    const { data } = await db.from("faqs").select("*").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit FAQ", faqFormHtml(data), '<button class="btn btn-primary" onclick="window.saveFaq(\'' + id + '\')">Save</button>');
+  };
+
+  window.saveFaq = async function (id) {
+    const db = getDb();
+    await db.from("faqs").update({ question: $("#fqQ").value, answer: $("#fqA").value, category: $("#fqC").value, sort_order: parseInt($("#fqO").value) || 0 }).eq("id", id);
+    closeModal(); showToast("Saved!"); loadFaqsEditor();
+  };
+
+  async function loadAdminsEditor() {
+    const db = getDb();
+    if (!db || currentAdmin?.role !== "super_admin") return;
+    const { data } = await db.from("admin_users").select("id,email,full_name,role,is_active,last_login").order("created_at");
+    const tb = $("#adminsTable tbody");
+    if (!tb) return;
+    tb.innerHTML = (data || []).map(a =>
+      '<tr><td>' + esc(a.full_name) + '</td><td>' + a.email + '</td>' +
+      '<td><span class="status-badge ' + (a.role === "super_admin" ? "green" : a.role === "scanner" ? "orange" : "blue") + '">' + a.role + '</span></td>' +
+      '<td>' + (a.is_active ? '<span class="status-badge green">Active</span>' : '<span class="status-badge red">Inactive</span>') + '</td>' +
+      '<td>' + formatDate(a.last_login) + '</td>' +
+      '<td><button class="btn-sm blue" onclick="window.editAdmin(\'' + a.id + '\')"><i data-lucide="edit-3"></i></button></td></tr>'
+    ).join("");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  }
+
+  $("#addAdminBtn")?.addEventListener("click", () => {
+    openModal("Add Admin",
+      '<div class="form-group"><label>Name</label><input id="adN"/></div>' +
+      '<div class="form-group"><label>Email</label><input id="adE" type="email"/></div>' +
+      '<div class="form-group"><label>Password</label><input id="adP" type="password"/></div>' +
+      '<div class="form-group"><label>Role</label><select id="adR"><option value="admin">Admin</option><option value="super_admin">Super Admin</option><option value="scanner">Scanner</option></select></div>',
+      '<button class="btn btn-primary" onclick="window.createAdmin()">Create</button>');
+  });
+
+  window.createAdmin = async function () {
+    const email = $("#adE").value.trim().toLowerCase();
+    const pass = $("#adP").value;
+    if (!email || !pass) { showToast("All fields required", "error"); return; }
+    const db = getDb();
+    try {
+      const { error } = await db.rpc("create_admin", { p_email: email, p_password: pass, p_name: $("#adN").value, p_role: $("#adR").value });
+      if (error) throw error;
+      closeModal(); showToast("Created!"); loadAdminsEditor();
+    } catch (e) { showToast("Failed: " + e.message, "error"); }
+  };
+
+  window.editAdmin = async function (id) {
+    const db = getDb();
+    const { data } = await db.from("admin_users").select("id,email,full_name,role,is_active").eq("id", id).single();
+    if (!data) return;
+    openModal("Edit Admin",
+      '<div class="form-group"><label>Name</label><input id="adN" value="' + esc(data.full_name) + '"/></div>' +
+      '<div class="form-group"><label>Email</label><input id="adE" value="' + data.email + '"/></div>' +
+      '<div class="form-group"><label>Role</label><select id="adR">' +
+      ["admin","super_admin","scanner"].map(r => '<option value="' + r + '"' + (data.role === r ? " selected" : "") + '>' + r + '</option>').join("") + '</select></div>' +
+      '<div class="form-group"><label><input type="checkbox" id="adA"' + (data.is_active ? " checked" : "") + '/> Active</label></div>',
+      '<button class="btn btn-primary" onclick="window.saveAdmin(\'' + id + '\')">Save</button>');
+  };
+
+  window.saveAdmin = async function (id) {
+    const db = getDb();
+    await db.from("admin_users").update({ full_name: $("#adN").value, email: $("#adE").value, role: $("#adR").value, is_active: $("#adA").checked }).eq("id", id);
+    closeModal(); showToast("Saved!"); loadAdminsEditor();
+  };
+
+  async function loadActivityLog() {
+    const db = getDb();
+    if (!db) return;
+    const { data } = await db.from("activity_log").select("*,admin_users(full_name)").order("created_at", { ascending: false }).limit(200);
+    const tb = $("#activityTable tbody");
+    if (!tb) return;
+    tb.innerHTML = (data || []).map(a =>
+      '<tr><td>' + formatDate(a.created_at) + '</td><td>' + esc(a.admin_users?.full_name || "System") + '</td>' +
+      '<td><span class="status-badge blue">' + a.action_type + '</span></td>' +
+      '<td>' + a.entity_type + '</td><td>' + esc(a.description) + '</td></tr>'
+    ).join("");
+  }
+
+  window.deleteItem = function (table, id) {
+    confirmAction("Delete Item", "This cannot be undone. Are you sure?", async () => {
+      const db = getDb();
+      try {
+        await db.from(table).delete().eq("id", id);
+        logAction("DELETE", table, id, "Deleted from " + table);
+        showToast("Deleted");
+        const v = $(".view.active")?.id?.replace("view-", "");
+        if (v) navigateTo(v);
+      } catch (err) { showToast("Delete failed", "error"); }
+    }, true);
+  };
+
+  function exportExcel(data, name) {
+    if (typeof XLSX === "undefined") { showToast("Export lib not loaded", "error"); return; }
+    if (!data || !data.length) { showToast("No data", "warning"); return; }
+    try {
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Data");
+      const ts = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, "ALTITUDE_" + name + "_" + ts + ".xlsx");
+      showToast("Exported " + data.length + " records");
+    } catch (e) { showToast("Export failed", "error"); }
+  }
+
+  // ==================== FILTERS ====================
   function initFilters() {
     const ms = $("#membersSearch"), mst = $("#membersStatusFilter"), mf = $("#membersFoodFilter"), mg = $("#membersGroupFilter");
     const filterMembers = debounce(() => {
@@ -2341,8 +1986,6 @@
     }, 200);
     ats?.addEventListener("input", filterAtt);
     atf?.addEventListener("change", filterAtt);
-
-    initTreasuryFilters();
   }
 
   // ==================== INIT ====================
@@ -2359,8 +2002,6 @@
       });
     });
 
-    $("#menuToggle")?.addEventListener("click", () => $("#adminSidebar").classList.toggle("open"));
-    $("#sidebarClose")?.addEventListener("click", () => $("#adminSidebar").classList.remove("open"));
     $("#startScanBtn")?.addEventListener("click", startScanner);
     $("#stopScanBtn")?.addEventListener("click", stopScanner);
 
@@ -2392,10 +2033,7 @@
     })), "DC_Registrations"));
 
     initFilters();
-    initKeyboardShortcuts();
     if (typeof lucide !== "undefined") lucide.createIcons();
-
-    if (window.CONFIG) window.CONFIG.log("Admin Console v6.0 initialized with Treasury Module.", "ADMIN");
   }
 
   if (document.readyState === "loading") {
