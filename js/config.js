@@ -1,33 +1,34 @@
 /**
- * ALTITUDE 2026 — Advanced Core Configuration & Diagnostics
- * Central Initialization, Performance Tracking, and Network Integrity Engine
- * Rotaract District 3206 · Ooty Trekking Event
+ * ALTITUDE 2026 — Advanced Core Configuration & System Diagnostics
+ * Single-Instance DB Initializer, Network Integrity, and Comm Matrix
+ * Rotaract District 3206 · Ooty Trekking Event · December 12-13, 2026
+ * Project ID: nywnwnforqyrtdmsregq
  */
 
 (function () {
   "use strict";
 
   const CONFIG = {
-    // Environment Control
+    // Debug & Version Control
     DEBUG: true,
-    VERSION: "4.1.0",
+    VERSION: "5.0.0",
 
-    // Supabase Credentials
+    // Supabase Core Credentials
     SUPABASE_URL: "https://nywnwnforqyrtdmsregq.supabase.co",
     SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55d253bmZvcnF5cnRkbXNyZWdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NzcxMjYsImV4cCI6MjEwNjI1MzEyNn0.c3W0_t7CL3Suh7SXq4c-1jtvLN8hNB21WJW_8gKB3wY",
 
-    // EmailJS Credentials
+    // EmailJS Production Credentials
     EMAILJS_SERVICE_ID: "service_ojeg5q8",
     EMAILJS_PUBLIC_KEY: "M1tEIYjvJ0UmKdDW8",
     EMAILJS_PRIVATE_KEY: "yHsYhjdAwcEms79c9jroA",
 
-    // Optimized 2-Template System
+    // Consolidated 2-Template Communications Matrix (Free Tier Optimized)
     EMAILJS_TEMPLATES: {
       OTP: "template_otp",
       NOTIFICATION: "template_notification"
     },
 
-    // Permanent Event Metadata
+    // Permanent Event Specifications
     EVENT: {
       NAME: "ALTITUDE",
       YEAR: "2026",
@@ -35,7 +36,7 @@
       LOCATION: "Ooty, Tamil Nadu",
       VENUE: "Nilgiri Hills, Ooty",
       FEE_INR: 3000,
-      DRR: "Rtr. PP. Muruganandam",
+      CHAIRPERSON: "Rtr. PP. Muruganandam",
       HOSTS: [
         "Rotaract Club of Coimbatore Unity",
         "Rotaract Club of Young Vibrants",
@@ -49,14 +50,14 @@
       }
     },
 
-    // Centralized State & Diagnostics
+    // Real-Time System State Tracking
     STATE: {
       isOnline: navigator.onLine,
       dbInitialized: false,
       environment: null
     },
 
-    // Centralized System Logger
+    // Micro-Logger Utility
     log: function (message, context = "SYSTEM") {
       if (this.DEBUG) {
         console.log(`%c[${context}] %c${message}`, "color: #4CAF50; font-weight: bold;", "color: inherit;");
@@ -72,46 +73,46 @@
     }
   };
 
-  // ==================== ENVIRONMENT & SECURITY CHECKS ====================
+  // ==================== SECURITY & PROTOCOL DETECTION ====================
   function detectEnvironment() {
     const protocol = window.location.protocol;
     if (protocol === "file:") {
       CONFIG.STATE.environment = "local-file";
       CONFIG.warn(
-        "Application loaded via file:// protocol. LocalStorage, camera hardware, and fetch API operations may fail due to browser security restrictions. Please serve files via local HTTP server.",
+        "Application loaded via 'file://' origin. Browsers strictly limit LocalStorage, Web Share APIs, Camera hardware permissions, and Fetch API network requests in this state. Please serve via local HTTP server.",
         "SECURITY"
       );
-    } else if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      CONFIG.STATE.environment = "local-server";
-      CONFIG.log("Running on development loopback server.", "ENVIRONMENT");
+    } else if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+      CONFIG.STATE.environment = "development-loopback";
+      CONFIG.log("Running in development environment via localhost.", "ENVIRONMENT");
     } else {
       CONFIG.STATE.environment = "production";
       CONFIG.log("Running in secure production environment.", "ENVIRONMENT");
     }
   }
 
-  // ==================== CONNECTIVITY TRACKER ====================
+  // ==================== NETWORK CONNECTIVITY TRACKER ====================
   function initConnectivityTracker() {
-    const handleStatusChange = () => {
+    const updateNetworkStatus = () => {
       CONFIG.STATE.isOnline = navigator.onLine;
       if (navigator.onLine) {
-        CONFIG.log("Network connection restored.", "NETWORK");
+        CONFIG.log("Internet link established.", "NETWORK");
         if (window.showToast) window.showToast("Your internet connection is restored.", "success");
       } else {
-        CONFIG.warn("Internet connection lost. Offline mode active.", "NETWORK");
-        if (window.showToast) window.showToast("Network connection lost. Please check your internet.", "warning");
+        CONFIG.warn("Internet connection dropped. Local offline queuing active.", "NETWORK");
+        if (window.showToast) window.showToast("Network lost. Some features will queue offline.", "warning");
       }
     };
 
-    window.addEventListener("online", handleStatusChange);
-    window.addEventListener("offline", handleStatusChange);
+    window.addEventListener("online", updateNetworkStatus);
+    window.addEventListener("offline", updateNetworkStatus);
   }
 
-  // ==================== SUPABASE CLIENT INITIALIZATION ====================
+  // ==================== SUPABASE CORE ENGINE (Strict Singleton) ====================
   function initSupabaseCore() {
-    // Block multiple instantiations of GoTrueClient
-    if (window.db) {
-      CONFIG.log("Existing database client instance detected. Bypassing duplication.", "DATABASE");
+    // Enforce Singleton Pattern to prevent GoTrueClient duplicate warnings
+    if (window.db || window.supabaseClient) {
+      CONFIG.log("Active database instance already bound to global context. Skipping duplication.", "DATABASE");
       return;
     }
 
@@ -122,39 +123,38 @@
             persistSession: true,
             autoRefreshToken: true,
             detectSessionInUrl: true,
-            storageKey: "altitude_session_token" // Custom isolated storage key
+            storageKey: "altitude_session_token_v5" // Isolated storage key to prevent token collisions
           }
         });
 
-        // Attach globally as both db and supabaseClient
+        // Set global references
         window.db = client;
         window.supabaseClient = client;
         CONFIG.STATE.dbInitialized = true;
-        CONFIG.log("Database core engine successfully initialized.", "DATABASE");
+        CONFIG.log("Quantum Database Engine fully loaded and mounted.", "DATABASE");
 
-        // Dispatch a custom window event for modules waiting on DB initialization
+        // Dispatch global ready event
         window.dispatchEvent(new CustomEvent("dbReady", { detail: { db: client } }));
       } catch (err) {
-        CONFIG.error("Failed to initialize database core engine.", err, "DATABASE");
+        CONFIG.error("Failed to compile Database Engine constructor.", err, "DATABASE");
       }
     } else {
-      // Retry safely if scripts are loaded out of order
-      CONFIG.warn("Supabase library not yet loaded in DOM. Retrying initialization...", "DATABASE");
-      let retries = 0;
-      const retryInterval = setInterval(() => {
-        retries++;
+      // Dynamic retry loop to handle out-of-order DOM loading safely
+      let checkAttempts = 0;
+      const checkInterval = setInterval(() => {
+        checkAttempts++;
         if (typeof supabase !== "undefined" && supabase.createClient) {
-          clearInterval(retryInterval);
+          clearInterval(checkInterval);
           initSupabaseCore();
-        } else if (retries >= 50) { // Timeout after 5 seconds
-          clearInterval(retryInterval);
-          CONFIG.error("Supabase script failed to load. Core engine initialization aborted.", null, "DATABASE");
+        } else if (checkAttempts >= 50) { // Timeout after 5 seconds
+          clearInterval(checkInterval);
+          CONFIG.error("DOM Script injection timeout. Supabase library is missing.", null, "DATABASE");
         }
       }, 100);
     }
   }
 
-  // ==================== EMAILJS INITIALIZATION ====================
+  // ==================== EMAILJS CORE matrix ====================
   function initEmailJSCore() {
     if (typeof emailjs !== "undefined") {
       try {
@@ -162,20 +162,34 @@
           publicKey: CONFIG.EMAILJS_PUBLIC_KEY,
           blockHeadless: true,
           limitRate: {
-            id: "altitude_app",
-            throttle: 5000 // 5-second cooldown to block spam bots
+            id: "altitude_app_rate_limiter",
+            throttle: 5000 // 5-second cooldown to block repetitive bot-spamming
           }
         });
-        CONFIG.log("EmailJS communication matrix initialized.", "EMAIL");
+        CONFIG.log("EmailJS Communication Matrix successfully mounted.", "COMM");
       } catch (err) {
-        CONFIG.error("Failed to initialize EmailJS communication matrix.", err, "EMAIL");
+        CONFIG.error("Failed to initialize EmailJS communication matrix.", err, "COMM");
       }
     } else {
-      CONFIG.warn("EmailJS library not yet loaded in DOM.", "EMAIL");
+      CONFIG.warn("EmailJS library not detected in DOM script register.", "COMM");
     }
   }
 
-  // ==================== CONTROLLED STARTUP ====================
+  // ==================== CONSOLE DIAGNOSTIC SUITE ====================
+  window.AltitudeDiagnostics = function () {
+    console.group("%c ALTITUDE v" + CONFIG.VERSION + " - CORE DIAGNOSTIC REPORT ", "background: #0D3B12; color: #fff; font-weight: bold; padding: 4px;");
+    console.log("Database Status :", CONFIG.STATE.dbInitialized ? "🟢 ACTIVE" : "🔴 OFFLINE");
+    console.log("Internet Link   :", CONFIG.STATE.isOnline ? "🟢 CONNECTED" : "🔴 OFFLINE");
+    console.log("Environment     :", CONFIG.STATE.environment.toUpperCase());
+    console.log("Project Ref ID  :", "nywnwnforqyrtdmsregq");
+    console.log("Active Session  :", localStorage.getItem("altitude_session") ? "🟢 LOGGED IN" : "⚪ NO ACTIVE SESSION");
+    console.log("Offline Queue   :", localStorage.getItem("altitude_offline_queue") ? JSON.parse(localStorage.getItem("altitude_offline_queue")).length + " pending items" : "0 items");
+    console.log("Recent Scans    :", localStorage.getItem("altitude_recent_scans") ? JSON.parse(localStorage.getItem("altitude_recent_scans")).length + " cached scans" : "0 scans");
+    console.groupEnd();
+    return "Diagnostic fetch complete.";
+  };
+
+  // ==================== STARTUP INGESTION ====================
   detectEnvironment();
   initConnectivityTracker();
   initSupabaseCore();
