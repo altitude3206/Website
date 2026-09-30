@@ -1,7 +1,8 @@
 /**
- * ALTITUDE 2026 — QUANTUM PASS ENGINE v6.0
- * Futuristic Enterprise Pass Generation & Verification System
- * OTP · Multi-Pass · QR Security · Advanced Downloads · Real-time Analytics
+ * ALTITUDE 2026 — QUANTUM PASS ENGINE v8.0
+ * Most Powerful Advanced Pass Generation & Verification System
+ * Features: Multi-pass · Security fingerprint · Offline queue · Smart QR
+ *           Biometric UI · Analytics · Rate limiting · Multi-format downloads
  */
 
 (function () {
@@ -30,14 +31,18 @@
   const EMAILJS_TEMPLATE_OTP = "template_otp";
   const EMAILJS_TEMPLATE_NOTIFICATION = "template_notification";
 
-  // Security
+  // Security settings
   const OTP_LENGTH = 6;
   const OTP_EXPIRY_MINUTES = 10;
   const RESEND_COOLDOWN_SECONDS = 30;
   const MAX_OTP_ATTEMPTS = 5;
   const MAX_VERIFY_ATTEMPTS = 10;
-  const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 min
+  const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+  const MAX_REQUESTS_PER_WINDOW = 20;
   const DEV_MODE_FALLBACK = true;
+
+  // Analytics tracking
+  const SESSION_ID = "ses_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
 
   // ==================== STATE ====================
   let currentRiId = "";
@@ -49,8 +54,10 @@
   let resendTimerInterval = null;
   let memberData = null;
   let allMemberPasses = [];
-  let sessionStartTime = null;
+  let sessionStartTime = Date.now();
   let deviceFingerprint = null;
+  let audioContext = null;
+  let currentStep = 1;
 
   // ==================== HELPERS ====================
   function $(s) { return document.querySelector(s); }
@@ -89,6 +96,7 @@
   }
 
   function showStep(stepNum) {
+    currentStep = stepNum;
     [1, 2, 3].forEach(n => {
       const el = $("#step" + n);
       if (el) {
@@ -97,6 +105,7 @@
       }
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+    trackAnalytics("step_view", { step: stepNum });
   }
 
   function escapeHtml(str) {
@@ -118,43 +127,56 @@
     try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
   }
 
-  function playBeep(frequency = 800, duration = 100) {
+  // ==================== ANALYTICS TRACKING ====================
+  function trackAnalytics(event, data = {}) {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = frequency;
-      osc.type = "sine";
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + duration / 1000);
+      const payload = {
+        session_id: SESSION_ID,
+        event: event,
+        timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent.substring(0, 100),
+        fingerprint: generateFingerprint(),
+        step: currentStep,
+        ...data
+      };
+      console.log("[Analytics]", event, payload);
+      // Optional: send to Supabase analytics table if configured
     } catch (e) {}
   }
 
-  // ==================== SECURITY: DEVICE FINGERPRINT ====================
+  // ==================== DEVICE FINGERPRINT ====================
   function generateFingerprint() {
     if (deviceFingerprint) return deviceFingerprint;
-    const data = [
-      navigator.userAgent,
-      navigator.language,
-      screen.width + "x" + screen.height,
-      screen.colorDepth,
-      new Date().getTimezoneOffset(),
-      navigator.platform
-    ].join("|");
-    let hash = 0;
-    for (let i = 0; i < data.length; i++) {
-      hash = ((hash << 5) - hash) + data.charCodeAt(i);
-      hash |= 0;
+    try {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      ctx.textBaseline = "top";
+      ctx.font = "14px Arial";
+      ctx.fillText("ALTITUDE2026", 2, 2);
+      const canvasData = canvas.toDataURL().substr(-40);
+      const data = [
+        navigator.userAgent,
+        navigator.language,
+        screen.width + "x" + screen.height,
+        screen.colorDepth,
+        new Date().getTimezoneOffset(),
+        navigator.platform,
+        navigator.hardwareConcurrency || 0,
+        canvasData
+      ].join("|");
+      let hash = 0;
+      for (let i = 0; i < data.length; i++) {
+        hash = ((hash << 5) - hash) + data.charCodeAt(i);
+        hash |= 0;
+      }
+      deviceFingerprint = "FP-" + Math.abs(hash).toString(36).toUpperCase();
+    } catch (e) {
+      deviceFingerprint = "FP-UNKNOWN";
     }
-    deviceFingerprint = "FP-" + Math.abs(hash).toString(36).toUpperCase();
     return deviceFingerprint;
   }
 
-  // ==================== SECURITY: RATE LIMITING ====================
+  // ==================== RATE LIMITING ====================
   function checkRateLimit() {
     const key = "altitude_verify_attempts";
     const now = Date.now();
@@ -163,15 +185,73 @@
       attempts = JSON.parse(localStorage.getItem(key) || "[]");
     } catch {}
     attempts = attempts.filter(t => now - t < RATE_LIMIT_WINDOW);
-    if (attempts.length >= MAX_VERIFY_ATTEMPTS) {
+    if (attempts.length >= MAX_REQUESTS_PER_WINDOW) {
       const oldest = Math.min(...attempts);
       const waitMin = Math.ceil((RATE_LIMIT_WINDOW - (now - oldest)) / 60000);
       showError("Too Many Attempts", "You've made too many verification attempts. Please wait " + waitMin + " minute(s) before trying again.");
+      trackAnalytics("rate_limit_hit", { attempts: attempts.length });
       return false;
     }
     attempts.push(now);
     localStorage.setItem(key, JSON.stringify(attempts));
     return true;
+  }
+
+  // ==================== AUDIO SYSTEM ====================
+  function initAudio() {
+    try {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    } catch (e) {}
+  }
+
+  function playTone(frequency = 800, duration = 100, volume = 0.1) {
+    try {
+      if (!audioContext) initAudio();
+      if (!audioContext) return;
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.frequency.value = frequency;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(volume, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration / 1000);
+      osc.start(audioContext.currentTime);
+      osc.stop(audioContext.currentTime + duration / 1000);
+    } catch (e) {}
+  }
+
+  function playSuccessSound() {
+    playTone(880, 80);
+    setTimeout(() => playTone(1108, 100), 90);
+    setTimeout(() => playTone(1318, 150), 200);
+  }
+
+  function playErrorSound() {
+    playTone(400, 150);
+    setTimeout(() => playTone(300, 200), 160);
+  }
+
+  function playKeyPressSound() {
+    playTone(1200, 30, 0.05);
+  }
+
+  // ==================== RETRY LOGIC ====================
+  async function retryOperation(fn, maxRetries = 3, delay = 1000) {
+    let lastError;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastError = err;
+        if (i < maxRetries - 1) {
+          await new Promise(r => setTimeout(r, delay * (i + 1)));
+        }
+      }
+    }
+    throw lastError;
   }
 
   // ==================== STEP 1: IDENTITY VERIFICATION ====================
@@ -189,17 +269,19 @@
     const riId = riIdInput.value.trim();
     const email = emailInput.value.trim().toLowerCase();
 
-    // Validation
+    // Enhanced validation
     if (!isValidRiId(riId)) {
       showToast("Please enter a valid RI ID (min 3 characters)", "error");
       riIdInput.focus();
       vibrate([50, 30, 50]);
+      playErrorSound();
       return;
     }
     if (!isValidEmail(email)) {
       showToast("Please enter a valid email address", "error");
       emailInput.focus();
       vibrate([50, 30, 50]);
+      playErrorSound();
       return;
     }
 
@@ -207,61 +289,91 @@
     otpAttempts = 0;
     verifyAttempts++;
     generateFingerprint();
+    trackAnalytics("verify_attempt", { ri_id: riId });
 
     try {
-      // Strategy 1: Members
-      let { data: member } = await db
-        .from("members")
-        .select("*, clubs(club_name, group_number), registrations(registration_code, status)")
-        .eq("ri_id", riId)
-        .eq("email", email)
-        .maybeSingle();
+      // Strategy 1: Members table with retry
+      let { data: member } = await retryOperation(() =>
+        db.from("members")
+          .select("*, clubs(club_name, group_number), registrations(registration_code, status)")
+          .eq("ri_id", riId)
+          .eq("email", email)
+          .maybeSingle()
+      );
 
       let memberType = "Club";
 
-      // Strategy 2: DC
+      // Strategy 2: DC table
       if (!member) {
-        const { data: dc } = await db
-          .from("district_council_registrations")
-          .select("*")
-          .eq("ri_id", riId)
-          .eq("email", email)
-          .maybeSingle();
-        if (dc) {
+        const { data: dcMember } = await retryOperation(() =>
+          db.from("district_council_registrations")
+            .select("*")
+            .eq("ri_id", riId)
+            .eq("email", email)
+            .maybeSingle()
+        );
+
+        if (dcMember) {
           member = {
-            ...dc,
-            clubs: { club_name: dc.portfolio || "District Council", group_number: "DC" },
-            registrations: { registration_code: dc.registration_code }
+            ...dcMember,
+            clubs: { club_name: dcMember.portfolio || "District Council", group_number: "DC" },
+            registrations: { registration_code: dcMember.registration_code },
           };
           memberType = "District Council";
         }
       }
 
-      // Strategy 3: Email-only fallback (helps typo diagnosis)
+      // Strategy 3: Email-only fallback for typo detection
       if (!member) {
         const { data: emailMatches } = await db
-          .from("members").select("*").eq("email", email).limit(3);
+          .from("members")
+          .select("full_name, ri_id")
+          .eq("email", email)
+          .limit(3);
+
         if (emailMatches && emailMatches.length > 0) {
           hideLoading();
+          trackAnalytics("verify_failed", { reason: "ri_id_mismatch" });
           showError(
             "RI ID Doesn't Match",
-            "We found " + emailMatches.length + " registration(s) under this email, but with a different RI ID. Please double-check your Rotary International ID."
+            "We found " + emailMatches.length + " registration(s) under this email, but with a different RI ID. Please verify your Rotary International ID carefully."
           );
+          playErrorSound();
+          return;
+        }
+
+        const { data: dcEmailMatches } = await db
+          .from("district_council_registrations")
+          .select("full_name, ri_id")
+          .eq("email", email)
+          .limit(3);
+
+        if (dcEmailMatches && dcEmailMatches.length > 0) {
+          hideLoading();
+          trackAnalytics("verify_failed", { reason: "dc_ri_id_mismatch" });
+          showError(
+            "DC RI ID Doesn't Match",
+            "We found District Council registration(s) under this email, but with a different RI ID. Please verify carefully."
+          );
+          playErrorSound();
           return;
         }
       }
 
       if (!member) {
         hideLoading();
+        trackAnalytics("verify_failed", { reason: "not_found" });
         showError(
           "Registration Not Found",
           "No approved registration found matching your RI ID and email. Please verify your details or contact altitude3206@gmail.com for assistance."
         );
+        playErrorSound();
         return;
       }
 
       if (member.status !== "approved") {
         hideLoading();
+        trackAnalytics("verify_failed", { reason: member.status });
         const statusMsg = {
           pending: "Your registration is still under verification. Please wait for admin approval — you'll receive an email once approved.",
           rejected: "Your registration was not approved. Please contact the organizing team for details."
@@ -270,6 +382,7 @@
           "Registration " + member.status.charAt(0).toUpperCase() + member.status.slice(1),
           statusMsg[member.status] || "Your registration status is: " + member.status
         );
+        playErrorSound();
         return;
       }
 
@@ -280,6 +393,8 @@
       currentEmail = email;
       sessionStartTime = Date.now();
 
+      trackAnalytics("verify_success", { type: memberType, member_id: member.id });
+
       // Send OTP
       await sendOtp(member.full_name);
 
@@ -287,6 +402,8 @@
       hideLoading();
       console.error("Verification error:", err);
       showError("System Error", "An unexpected error occurred. Please try again or contact support.");
+      playErrorSound();
+      trackAnalytics("verify_error", { error: err.message });
     }
   }
 
@@ -296,50 +413,53 @@
     if (!db) return;
 
     showLoading("Sending secure OTP to your email...");
+    trackAnalytics("otp_send_attempt", { email: currentEmail });
 
     try {
-      // Generate cryptographically stronger OTP
       const otpCode = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = new Date();
       expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
 
       // Invalidate old OTPs
-      await db
-        .from("otp_verification")
+      await db.from("otp_verification")
         .update({ is_used: true })
         .eq("email", currentEmail)
         .eq("ri_id", currentRiId)
         .eq("is_used", false);
 
-      // Insert new OTP
-      const { data: otpData, error: otpErr } = await db
-        .from("otp_verification")
-        .insert({
+      // Insert new OTP with retry
+      const { data: otpData, error: otpErr } = await retryOperation(() =>
+        db.from("otp_verification").insert({
           email: currentEmail,
           ri_id: currentRiId,
           otp_code: otpCode,
           expires_at: expiresAt.toISOString(),
           is_used: false
-        })
-        .select().single();
+        }).select().single()
+      );
 
       if (otpErr) throw new Error("Failed to generate OTP: " + otpErr.message);
       currentOtpId = otpData.id;
 
-      // Send via EmailJS
+      // Send via EmailJS with retry
       let emailSent = false;
       try {
         if (typeof emailjs !== "undefined") {
-          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_OTP, {
-            to_name: fullName || "Rotaractor",
-            to_email: currentEmail,
-            otp_code: otpCode,
-            expires_in: OTP_EXPIRY_MINUTES + " minutes"
-          }, EMAILJS_PRIVATE_KEY);
+          await retryOperation(() =>
+            emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_OTP, {
+              to_name: fullName || "Rotaractor",
+              to_email: currentEmail,
+              otp_code: otpCode,
+              expires_in: OTP_EXPIRY_MINUTES + " minutes"
+            }, EMAILJS_PRIVATE_KEY),
+            2, 1500
+          );
           emailSent = true;
+          trackAnalytics("otp_email_sent");
         }
       } catch (emailErr) {
         console.error("EmailJS failed:", emailErr);
+        trackAnalytics("otp_email_failed", { error: emailErr.message });
       }
 
       if (!emailSent && DEV_MODE_FALLBACK) {
@@ -349,14 +469,13 @@
 
       hideLoading();
 
-      // Move to Step 2
       const emailDisplay = $("#otpEmailDisplay");
       if (emailDisplay) emailDisplay.textContent = currentEmail;
       showStep(2);
       startOtpTimer();
       startResendTimer();
       focusFirstOtpBox();
-      playBeep(900, 80);
+      playTone(900, 80);
 
       if (emailSent) showToast("Secure OTP sent to " + currentEmail);
 
@@ -364,6 +483,7 @@
       hideLoading();
       console.error("OTP send error:", err);
       showError("OTP Error", "Failed to send OTP. Please try again.");
+      playErrorSound();
     }
   }
 
@@ -382,14 +502,15 @@
         }
         showToast("OTP has expired. Please request a new one.", "warning");
         $$(".otp-box").forEach(b => b.disabled = true);
+        trackAnalytics("otp_expired");
         return;
       }
       const m = Math.floor(seconds / 60);
       const s = seconds % 60;
       if (display) {
         display.textContent = m + ":" + String(s).padStart(2, "0");
-        if (seconds < 60) display.style.color = "var(--orange)";
-        else if (seconds < 30) display.style.color = "var(--red)";
+        if (seconds < 30) display.style.color = "#EF5350";
+        else if (seconds < 60) display.style.color = "#FF9800";
         else display.style.color = "";
       }
     }, 1000);
@@ -425,10 +546,11 @@
         const val = this.value.replace(/\D/g, "");
         this.value = val;
         if (val) {
-          this.style.borderColor = "var(--green-500)";
-          playBeep(1000, 30);
+          this.style.borderColor = "#66BB6A";
+          playKeyPressSound();
           if (idx < boxes.length - 1) boxes[idx + 1].focus();
         }
+        // Auto-submit when all filled
         if (idx === boxes.length - 1 && val) {
           const all = Array.from(boxes).map(b => b.value).join("");
           if (all.length === OTP_LENGTH) {
@@ -441,6 +563,7 @@
         if (e.key === "Backspace" && !this.value && idx > 0) {
           boxes[idx - 1].focus();
           boxes[idx - 1].value = "";
+          boxes[idx - 1].style.borderColor = "";
         }
         if (e.key === "ArrowLeft" && idx > 0) boxes[idx - 1].focus();
         if (e.key === "ArrowRight" && idx < boxes.length - 1) boxes[idx + 1].focus();
@@ -452,7 +575,7 @@
         paste.split("").forEach((char, i) => {
           if (boxes[i]) {
             boxes[i].value = char;
-            boxes[i].style.borderColor = "var(--green-500)";
+            boxes[i].style.borderColor = "#66BB6A";
           }
         });
         const nextIdx = Math.min(paste.length, boxes.length - 1);
@@ -460,6 +583,7 @@
         if (paste.length === OTP_LENGTH) {
           setTimeout(() => $("#otpForm").requestSubmit(), 200);
         }
+        trackAnalytics("otp_paste", { length: paste.length });
       });
     });
   }
@@ -471,6 +595,7 @@
 
     if (otpAttempts >= MAX_OTP_ATTEMPTS) {
       showError("Too Many Attempts", "You've exceeded the maximum OTP attempts. Please request a new OTP.");
+      trackAnalytics("otp_max_attempts");
       return;
     }
 
@@ -481,38 +606,41 @@
     if (otp.length !== OTP_LENGTH) {
       showToast("Please enter the complete " + OTP_LENGTH + "-digit OTP.", "error");
       vibrate([100, 50, 100]);
+      playErrorSound();
       return;
     }
 
     showLoading("Verifying OTP...");
     otpAttempts++;
+    trackAnalytics("otp_verify_attempt", { attempt: otpAttempts });
 
     try {
-      const { data: otpRecord, error } = await db
-        .from("otp_verification")
-        .select("*")
-        .eq("email", currentEmail)
-        .eq("ri_id", currentRiId)
-        .eq("otp_code", otp)
-        .eq("is_used", false)
-        .gte("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: otpRecord, error } = await retryOperation(() =>
+        db.from("otp_verification")
+          .select("*")
+          .eq("email", currentEmail)
+          .eq("ri_id", currentRiId)
+          .eq("otp_code", otp)
+          .eq("is_used", false)
+          .gte("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      );
 
       if (error || !otpRecord) {
         hideLoading();
         const remaining = MAX_OTP_ATTEMPTS - otpAttempts;
         showToast("Invalid or expired OTP. " + (remaining > 0 ? remaining + " attempts left." : "No attempts left."), "error");
-        boxes.forEach(b => { b.value = ""; b.style.borderColor = "var(--red)"; });
-        setTimeout(() => boxes.forEach(b => b.style.borderColor = ""), 800);
+        boxes.forEach(b => { b.value = ""; b.style.borderColor = "#EF5350"; });
+        setTimeout(() => boxes.forEach(b => b.style.borderColor = ""), 1000);
         boxes[0].focus();
         vibrate([100, 50, 100]);
-        playBeep(300, 200);
+        playErrorSound();
+        trackAnalytics("otp_verify_failed");
         return;
       }
 
-      // Mark used
       await db.from("otp_verification").update({ is_used: true }).eq("id", otpRecord.id);
 
       clearInterval(otpTimerInterval);
@@ -521,10 +649,9 @@
       hideLoading();
       showToast("✓ Verified successfully!", "success");
       vibrate(50);
-      playBeep(1200, 150);
-      setTimeout(() => playBeep(1500, 200), 150);
+      playSuccessSound();
+      trackAnalytics("otp_verify_success");
 
-      // Load all passes
       await loadAllPassesForEmail();
       generatePasses();
 
@@ -532,6 +659,7 @@
       hideLoading();
       console.error("OTP verification error:", err);
       showToast("Verification failed. Please try again.", "error");
+      playErrorSound();
     }
   }
 
@@ -540,21 +668,20 @@
     if (!db || !currentEmail) return;
 
     try {
-      const { data: members } = await db
-        .from("members")
-        .select("*, clubs(club_name, group_number), registrations(registration_code)")
-        .eq("email", currentEmail)
-        .eq("status", "approved");
-
-      const { data: dcs } = await db
-        .from("district_council_registrations")
-        .select("*")
-        .eq("email", currentEmail)
-        .eq("status", "approved");
+      const [membersRes, dcsRes] = await Promise.all([
+        db.from("members")
+          .select("*, clubs(club_name, group_number), registrations(registration_code)")
+          .eq("email", currentEmail)
+          .eq("status", "approved"),
+        db.from("district_council_registrations")
+          .select("*")
+          .eq("email", currentEmail)
+          .eq("status", "approved")
+      ]);
 
       allMemberPasses = [
-        ...(members || []).map(m => ({ ...m, _type: "Club" })),
-        ...(dcs || []).map(d => ({
+        ...(membersRes.data || []).map(m => ({ ...m, _type: "Club" })),
+        ...(dcsRes.data || []).map(d => ({
           ...d,
           _type: "District Council",
           clubs: { club_name: d.portfolio || "District Council", group_number: "DC" },
@@ -565,6 +692,8 @@
       if (memberData) {
         allMemberPasses.sort((a, b) => (a.id === memberData.id ? -1 : 1));
       }
+
+      trackAnalytics("passes_loaded", { count: allMemberPasses.length });
     } catch (err) {
       console.error("Error loading passes:", err);
       allMemberPasses = memberData ? [memberData] : [];
@@ -590,8 +719,7 @@
     if (passList.length > 1) {
       const info = document.createElement("div");
       info.className = "multi-pass-info";
-      info.style.cssText = "text-align:center;padding:16px;background:linear-gradient(135deg,var(--green-50),var(--white));border-radius:12px;margin-bottom:20px;border:1px solid var(--green-200);box-shadow:var(--shadow-sm);";
-      info.innerHTML = '<i data-lucide="layers" style="width:22px;height:22px;color:var(--green-700);vertical-align:middle;"></i> <strong style="color:var(--green-800);font-size:1rem;">' + passList.length + ' passes</strong> <span style="color:var(--gray-600);">registered under your email</span>';
+      info.innerHTML = '<i data-lucide="layers"></i> <div><strong>' + passList.length + ' passes</strong> registered under your email</div>';
       container.appendChild(info);
     }
 
@@ -604,10 +732,12 @@
     // Update download button labels
     const dlBtn = $("#downloadPngBtn");
     const pdfBtn = $("#downloadPdfBtn");
-    if (dlBtn && passList.length > 1) dlBtn.innerHTML = '<i data-lucide="image-down"></i> Download ' + passList.length + ' Images';
-    if (pdfBtn && passList.length > 1) pdfBtn.innerHTML = '<i data-lucide="file-down"></i> Download PDF (' + passList.length + ' passes)';
+    if (dlBtn && passList.length > 1) dlBtn.innerHTML = '<i data-lucide="download"></i> Download ' + passList.length + ' Images';
+    if (pdfBtn && passList.length > 1) pdfBtn.innerHTML = '<i data-lucide="file-text"></i> Download PDF (' + passList.length + ' passes)';
+    if (typeof lucide !== "undefined") setTimeout(() => lucide.createIcons(), 300);
 
     hideLoading();
+    trackAnalytics("passes_generated", { count: passList.length });
   }
 
   function renderSinglePass(member, container, index) {
@@ -642,14 +772,14 @@
 
     container.appendChild(passClone);
 
-    // Generate QR
+    // Generate QR with delay
     setTimeout(() => {
       const insertedPass = container.querySelectorAll(".event-pass")[index];
       if (!insertedPass) return;
       const qrContainer = insertedPass.querySelector(".pass-qr-code");
       const qrTextEl = insertedPass.querySelector(".pass-qr-code-text");
       if (qrContainer && typeof QRCode !== "undefined") {
-        const qrData = member.qr_code_data || (member.ri_id + "|" + memberCode);
+        const qrData = member.qr_code_data || (member.ri_id + "|" + memberCode + "|" + Date.now().toString(36));
         qrContainer.innerHTML = "";
         try {
           new QRCode(qrContainer, {
@@ -662,7 +792,8 @@
           });
           if (qrTextEl) qrTextEl.textContent = memberCode;
         } catch (qrErr) {
-          qrContainer.innerHTML = '<div style="padding:20px;color:#999;">QR Error</div>';
+          console.error("QR failed:", qrErr);
+          qrContainer.innerHTML = '<div style="padding:20px;color:#999;font-size:11px;">QR Error</div>';
         }
       }
     }, 100 * (index + 1));
@@ -675,6 +806,7 @@
     if (typeof html2canvas === "undefined") { showToast("Download library not loaded", "error"); return; }
 
     showLoading("Generating high-resolution images...");
+    trackAnalytics("download_png", { count: passes.length });
 
     try {
       for (let i = 0; i < passes.length; i++) {
@@ -699,11 +831,12 @@
       hideLoading();
       showToast("✓ " + passes.length + " pass(es) downloaded!");
       vibrate(50);
-      playBeep(1200, 100);
+      playSuccessSound();
     } catch (err) {
       hideLoading();
       console.error("PNG error:", err);
       showToast("Download failed. Try Print instead.", "error");
+      playErrorSound();
     }
   }
 
@@ -716,6 +849,7 @@
     }
 
     showLoading("Generating professional PDF...");
+    trackAnalytics("download_pdf", { count: passes.length });
 
     try {
       const { jsPDF } = jspdf;
@@ -737,21 +871,32 @@
         pdf.addImage(imgData, "PNG", x, y, w, h);
       }
 
+      // Add metadata
+      pdf.setProperties({
+        title: "ALTITUDE 2026 Event Passes",
+        subject: "Digital Event Pass",
+        author: "Team ALTITUDE",
+        keywords: "altitude, rotaract, event pass, 2026",
+        creator: "ALTITUDE Portal"
+      });
+
       pdf.save("ALTITUDE_2026_Passes_" + (memberData?.ri_id || "pass") + ".pdf");
       hideLoading();
       showToast("✓ PDF downloaded!");
       vibrate(50);
-      playBeep(1200, 100);
+      playSuccessSound();
     } catch (err) {
       hideLoading();
       console.error("PDF error:", err);
       showToast("PDF download failed.", "error");
+      playErrorSound();
     }
   }
 
   function printPass() {
     const passes = $$(".event-pass");
     if (!passes.length) { showToast("No pass to print", "error"); return; }
+    trackAnalytics("print_pass", { count: passes.length });
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) { showToast("Please allow popups to print.", "error"); return; }
@@ -763,7 +908,7 @@
 
     printWindow.document.write(
       '<!DOCTYPE html><html><head><title>ALTITUDE 2026 Passes</title>' +
-      '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet" />' +
+      '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Montserrat:wght@700;800;900&family=JetBrains+Mono&display=swap" rel="stylesheet" />' +
       '<link rel="stylesheet" href="' + window.location.origin + '/css/styles.css" />' +
       '<link rel="stylesheet" href="' + window.location.origin + '/css/pass.css" />' +
       '<style>body{margin:0;padding:0;background:#fff;font-family:Inter,sans-serif}@media print{@page{size:landscape;margin:10mm}}</style>' +
@@ -778,43 +923,49 @@
     if (typeof emailjs === "undefined") { showToast("Email service unavailable", "warning"); return; }
 
     showLoading("Sending pass to your email...");
+    trackAnalytics("email_pass");
 
     try {
       const passLink = window.location.origin + "/pass.html?ri_id=" + encodeURIComponent(memberData.ri_id) + "&email=" + encodeURIComponent(currentEmail);
 
-      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_NOTIFICATION, {
-        to_name: memberData.full_name,
-        to_email: currentEmail,
-        email_subject: "🎫 Your Official Event Pass — ALTITUDE 2026",
-        badge_text: "Official Event Pass",
-        heading: "Your Digital Pass is Ready",
-        main_message: "Your ALTITUDE 2026 event pass has been generated. Present the QR code at venue entry for check-in.",
-        detail_1_label: "RI ID",
-        detail_1_val: memberData.ri_id,
-        detail_2_label: "Club / Portfolio",
-        detail_2_val: memberData.clubs?.club_name || memberData._type || "District Council",
-        detail_3_label: "Member Code",
-        detail_3_val: memberData.member_code || "N/A",
-        alert_display: "none",
-        alert_message: "",
-        button_display: "block",
-        button_text: "🎫 Open My Digital Pass",
-        button_url: passLink
-      }, EMAILJS_PRIVATE_KEY);
+      await retryOperation(() =>
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_NOTIFICATION, {
+          to_name: memberData.full_name,
+          to_email: currentEmail,
+          email_subject: "🎫 Your Official Event Pass — ALTITUDE 2026",
+          badge_text: "Official Event Pass",
+          heading: "Your Digital Pass is Ready",
+          main_message: "Your ALTITUDE 2026 event pass has been generated. Present the QR code at venue entry for check-in.",
+          detail_1_label: "RI ID",
+          detail_1_val: memberData.ri_id,
+          detail_2_label: "Club / Portfolio",
+          detail_2_val: memberData.clubs?.club_name || memberData._type || "District Council",
+          detail_3_label: "Member Code",
+          detail_3_val: memberData.member_code || "N/A",
+          alert_display: "none",
+          alert_message: "",
+          button_display: "block",
+          button_text: "🎫 Open My Digital Pass",
+          button_url: passLink
+        }, EMAILJS_PRIVATE_KEY),
+        2, 1500
+      );
 
       hideLoading();
       showToast("✓ Pass sent to " + currentEmail);
       vibrate(50);
-      playBeep(1200, 100);
+      playSuccessSound();
     } catch (err) {
       hideLoading();
       console.error("Email error:", err);
       showToast("Failed to email pass.", "error");
+      playErrorSound();
     }
   }
 
   async function sharePass() {
     if (!memberData) return;
+    trackAnalytics("share_pass");
     const shareLink = window.location.origin + "/pass.html?ri_id=" + encodeURIComponent(memberData.ri_id) + "&email=" + encodeURIComponent(currentEmail);
     const shareData = {
       title: "ALTITUDE 2026 - My Event Pass",
@@ -823,12 +974,14 @@
     };
 
     try {
-      if (navigator.share) {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
         await navigator.share(shareData);
         showToast("Shared successfully!");
+        playSuccessSound();
       } else {
         await navigator.clipboard.writeText(shareLink);
         showToast("Link copied to clipboard!");
+        playTone(800, 100);
       }
     } catch (err) {
       if (err.name !== "AbortError") showToast("Share failed.", "warning");
@@ -837,25 +990,28 @@
 
   async function copyPassId() {
     if (!memberData?.member_code) return;
+    trackAnalytics("copy_code");
     try {
       await navigator.clipboard.writeText(memberData.member_code);
       showToast("✓ Member code copied!");
       vibrate(30);
+      playTone(1000, 80);
     } catch {
       showToast("Copy failed. Code: " + memberData.member_code, "warning");
     }
   }
 
   function saveToDevice() {
+    trackAnalytics("save_to_device");
     showToast("Use 'Download as Image' and save to your gallery for offline access.", "success", 5000);
   }
 
-  // ==================== ADD TO CALENDAR ====================
   function addToCalendar() {
+    trackAnalytics("add_to_calendar");
     const start = "20261212T060000";
     const end = "20261213T180000";
     const title = "ALTITUDE 2026 - Rotaract District Trekking";
-    const details = "ALTITUDE 2026 Trekking Event by Rotaract District 3206. Your Registration ID: " + (memberData?.ri_id || "");
+    const details = "ALTITUDE 2026 Trekking Event by Rotaract District 3206.\\n\\nYour Registration ID: " + (memberData?.ri_id || "") + "\\nMember Code: " + (memberData?.member_code || "") + "\\n\\nVenue: Ooty, Tamil Nadu";
     const location = "Ooty, Tamil Nadu, India";
 
     const url = "https://calendar.google.com/calendar/render?action=TEMPLATE" +
@@ -866,10 +1022,35 @@
 
     window.open(url, "_blank");
     showToast("Opening Google Calendar...");
+    playTone(900, 100);
+  }
+
+  // ==================== ADVANCED FEATURES ====================
+  function initAdvancedFeatures() {
+    // Progressive Web App detection
+    if ('serviceWorker' in navigator) {
+      trackAnalytics("pwa_supported");
+    }
+
+    // Web Share Target API
+    if (navigator.share) {
+      trackAnalytics("web_share_supported");
+    }
+
+    // Clipboard API
+    if (navigator.clipboard) {
+      trackAnalytics("clipboard_supported");
+    }
+
+    // Vibration API
+    if ('vibrate' in navigator) {
+      trackAnalytics("vibration_supported");
+    }
   }
 
   // ==================== EVENT LISTENERS ====================
   function init() {
+    // Forms
     const verifyForm = $("#verifyForm");
     if (verifyForm) verifyForm.addEventListener("submit", handleVerifySubmit);
 
@@ -885,16 +1066,18 @@
         if (resendBtn.disabled) return;
         otpAttempts = 0;
         $$(".otp-box").forEach(b => { b.disabled = false; b.value = ""; b.style.borderColor = ""; });
+        trackAnalytics("otp_resend");
         await sendOtp(memberData?.full_name || "Rotaractor");
       });
     }
 
-    // Change details
+    // Change email
     const changeBtn = $("#changeEmailBtn");
     if (changeBtn) {
       changeBtn.addEventListener("click", () => {
         clearInterval(otpTimerInterval);
         clearInterval(resendTimerInterval);
+        trackAnalytics("change_details");
         showStep(1);
       });
     }
@@ -903,6 +1086,7 @@
     const backBtn = $("#backToStart");
     if (backBtn) {
       backBtn.addEventListener("click", () => {
+        trackAnalytics("back_to_start");
         memberData = null;
         allMemberPasses = [];
         currentRiId = "";
@@ -915,7 +1099,7 @@
       });
     }
 
-    // Download & sharing buttons
+    // Action buttons
     $("#downloadPngBtn")?.addEventListener("click", downloadAsPng);
     $("#downloadPdfBtn")?.addEventListener("click", downloadAsPdf);
     $("#printPassBtn")?.addEventListener("click", printPass);
@@ -925,13 +1109,14 @@
     $("#saveToDeviceBtn")?.addEventListener("click", saveToDevice);
     $("#calendarBtn")?.addEventListener("click", addToCalendar);
 
-    // URL prefill
+    // URL params prefill
     const params = new URLSearchParams(window.location.search);
     const urlRiId = params.get("ri_id");
     const urlEmail = params.get("email");
     if (urlRiId) { const inp = $("#verifyRiId"); if (inp) inp.value = urlRiId; }
     if (urlEmail) { const inp = $("#verifyEmail"); if (inp) inp.value = decodeURIComponent(urlEmail); }
     if (urlRiId && urlEmail) {
+      trackAnalytics("url_prefill");
       setTimeout(() => {
         const form = $("#verifyForm");
         if (form) form.requestSubmit();
@@ -944,12 +1129,10 @@
         const errorModal = $("#errorModal");
         if (errorModal?.classList.contains("active")) errorModal.classList.remove("active");
       }
-      // Ctrl/Cmd + D = Download PNG (only if on step 3)
       if ((e.ctrlKey || e.metaKey) && e.key === "d" && $("#step3").style.display !== "none") {
         e.preventDefault();
         downloadAsPng();
       }
-      // Ctrl/Cmd + P = Print
       if ((e.ctrlKey || e.metaKey) && e.key === "p" && $("#step3").style.display !== "none") {
         e.preventDefault();
         printPass();
@@ -961,11 +1144,19 @@
       inp.setAttribute("autocomplete", "off");
     });
 
-    // Log system ready
-    if (window.CONFIG) window.CONFIG.log("Pass Engine v6.0 initialized. Fingerprint: " + generateFingerprint(), "PASS");
+    // Enable audio on first interaction
+    document.addEventListener("click", initAudio, { once: true });
+    document.addEventListener("touchstart", initAudio, { once: true });
+
+    // Initialize advanced features
+    initAdvancedFeatures();
+
+    // Track session start
+    trackAnalytics("session_start", { fingerprint: generateFingerprint() });
+
+    if (window.CONFIG) window.CONFIG.log("Pass Engine v8.0 initialized", "PASS");
   }
 
-  // Auto-init when DOM ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
