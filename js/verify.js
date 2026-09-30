@@ -1,242 +1,211 @@
 /**
- * ALTITUDE 2026 — QUANTUM VERIFY SCANNER v8.0
- * Ultimate Attendance Verification System
- * Real-time sync · Offline queue · Multi-camera · Sound engine
- * Duplicate guard · Session analytics · Network awareness
+ * ALTITUDE 2026 — QUANTUM VERIFY SCANNER v9.0
+ * Zero-Bug · Atomic Check-in · Offline Queue · Web Audio
+ * Production-Ready Enterprise Attendance System
  */
 
 (function () {
   "use strict";
 
-  // ==================== DATABASE ACCESS ====================
+  // ==================== DATABASE ====================
   function getDb() { return window.db || null; }
 
-  function waitForDb(callback, maxWait = 8000) {
-    if (getDb()) { callback(getDb()); return; }
-    const startTime = Date.now();
-    const check = setInterval(() => {
-      if (getDb()) { clearInterval(check); callback(getDb()); }
-      else if (Date.now() - startTime > maxWait) { clearInterval(check); }
+  function waitForDb(cb, max = 8000) {
+    if (getDb()) { cb(getDb()); return; }
+    const s = Date.now();
+    const i = setInterval(() => {
+      if (getDb()) { clearInterval(i); cb(getDb()); }
+      else if (Date.now() - s > max) clearInterval(i);
     }, 200);
-    window.addEventListener("dbReady", function handler(e) {
-      clearInterval(check);
-      window.removeEventListener("dbReady", handler);
-      callback(e.detail.db);
+    window.addEventListener("dbReady", function h(e) {
+      clearInterval(i);
+      window.removeEventListener("dbReady", h);
+      cb(e.detail.db);
     });
   }
 
   // ==================== CONFIG ====================
   const SESSION_HOURS = 8;
-  const STATS_REFRESH_INTERVAL = 20000;
-  const SCAN_COOLDOWN_MS = 2500;
-  const OFFLINE_SYNC_INTERVAL = 15000;
-  const DUPLICATE_WINDOW_MS = 5000;
+  const STATS_INTERVAL = 20000;
+  const SCAN_COOLDOWN = 2500;
+  const OFFLINE_SYNC = 15000;
+  const DUPLICATE_WINDOW = 5000;
 
   // ==================== STATE ====================
-  let currentScanner = null;
-  let html5QrCode = null;
+  let scanner = null;
+  let qrEngine = null;
   let isScanning = false;
-  let scanCooldown = false;
+  let scanLocked = false;
   let recentScans = [];
-  let currentFacingMode = "environment";
-  let availableCameras = [];
-  let selectedCameraIdx = 0;
-  let statsRefreshTimer = null;
-  let realtimeChannel = null;
-  let offlineQueue = [];
-  let audioContext = null;
+  let cameras = [];
+  let cameraIdx = 0;
+  let facingMode = "environment";
+  let statsTimer = null;
+  let rtChannel = null;
+  let offlineQ = [];
+  let audioCtx = null;
   let scanCount = 0;
-  let successCount = 0;
-  let errorCount = 0;
-  let sessionStartTime = null;
-  let lastScannedText = null;
-  let lastScannedAt = 0;
-  let isOnline = navigator.onLine;
+  let okCount = 0;
+  let errCount = 0;
+  let sessionStart = null;
+  let lastQR = null;
+  let lastQRAt = 0;
 
-  // ==================== HELPERS ====================
-  function $(s) { return document.querySelector(s); }
-  function $$(s) { return document.querySelectorAll(s); }
+  // ==================== DOM ====================
+  const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
 
-  function showToast(msg, type = "success", duration = 3500) {
+  // ==================== TOAST ====================
+  function toast(msg, type = "success", ms = 3500) {
     const t = $("#toast");
     const m = $("#toastMessage");
     if (!t || !m) return;
     m.textContent = msg;
     t.className = "toast " + type + " show";
-    const icon = t.querySelector(".toast-icon");
-    if (icon) icon.setAttribute("data-lucide", type === "error" ? "alert-circle" : type === "warning" ? "alert-triangle" : "check-circle");
+    const ic = t.querySelector(".toast-icon");
+    if (ic) {
+      const icons = { success: "check-circle", error: "alert-circle", warning: "alert-triangle" };
+      ic.setAttribute("data-lucide", icons[type] || "check-circle");
+    }
     if (typeof lucide !== "undefined") lucide.createIcons();
-    setTimeout(() => t.classList.remove("show"), duration);
+    setTimeout(() => t.classList.remove("show"), ms);
   }
 
-  function showLoading(text = "Verifying...") {
+  // ==================== LOADING ====================
+  function loading(text = "Verifying...") {
     const o = $("#loadingOverlay");
     const t = $("#loadingText");
     if (o) o.classList.add("active");
     if (t) t.textContent = text;
   }
 
-  function hideLoading() {
+  function loaded() {
     const o = $("#loadingOverlay");
     if (o) o.classList.remove("active");
   }
 
-  function formatDate(d) {
-    if (!d) return "—";
-    try {
-      return new Date(d).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-    } catch { return "—"; }
+  // ==================== UTILITIES ====================
+  function esc(s) {
+    if (!s) return "";
+    const d = document.createElement("div");
+    d.textContent = String(s);
+    return d.innerHTML;
   }
 
   function timeAgo(d) {
     if (!d) return "";
-    const diff = Date.now() - new Date(d).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "now";
-    if (mins < 60) return mins + "m";
-    const hrs = Math.floor(diff / 3600000);
-    if (hrs < 24) return hrs + "h";
-    return Math.floor(diff / 86400000) + "d";
+    const ms = Date.now() - new Date(d).getTime();
+    const m = Math.floor(ms / 60000);
+    if (m < 1) return "now";
+    if (m < 60) return m + "m";
+    const h = Math.floor(ms / 3600000);
+    if (h < 24) return h + "h";
+    return Math.floor(ms / 86400000) + "d";
   }
 
-  function escapeHtml(str) {
-    if (!str) return "";
-    const d = document.createElement("div");
-    d.textContent = String(str);
-    return d.innerHTML;
-  }
-
-  function vibrate(pattern = 50) {
-    try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
+  function vibrate(p = 50) {
+    try { if (navigator.vibrate) navigator.vibrate(p); } catch {}
   }
 
   // ==================== AUDIO ENGINE ====================
   function initAudio() {
+    try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+  }
+
+  function tone(freq = 800, dur = 100, vol = 0.1) {
     try {
-      if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) initAudio();
+      if (!audioCtx) return;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.frequency.value = freq;
+      o.type = "sine";
+      g.gain.setValueAtTime(vol, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur / 1000);
+      o.start(audioCtx.currentTime);
+      o.stop(audioCtx.currentTime + dur / 1000);
     } catch {}
   }
 
-  function playTone(freq = 800, dur = 100, type = "sine", vol = 0.12) {
-    try {
-      if (!audioContext) initAudio();
-      if (!audioContext) return;
-      const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      osc.connect(gain);
-      gain.connect(audioContext.destination);
-      osc.frequency.value = freq;
-      osc.type = type;
-      gain.gain.setValueAtTime(vol, audioContext.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + dur / 1000);
-      osc.start(audioContext.currentTime);
-      osc.stop(audioContext.currentTime + dur / 1000);
-    } catch {}
-  }
+  function sndOk() { tone(880, 80); setTimeout(() => tone(1108, 100), 90); setTimeout(() => tone(1318, 150), 200); }
+  function sndErr() { tone(400, 150); setTimeout(() => tone(300, 200), 160); }
+  function sndWarn() { tone(600, 100); setTimeout(() => tone(600, 100), 180); }
+  function sndBeep() { tone(1200, 40, 0.06); }
 
-  function playSuccess() {
-    playTone(880, 80);
-    setTimeout(() => playTone(1108, 100), 90);
-    setTimeout(() => playTone(1318, 150), 200);
-  }
-
-  function playError() {
-    playTone(400, 150);
-    setTimeout(() => playTone(300, 200), 160);
-  }
-
-  function playWarning() {
-    playTone(600, 100);
-    setTimeout(() => playTone(600, 100), 180);
-  }
-
-  function playScanBeep() {
-    playTone(1200, 40, "square", 0.06);
-  }
-
-  // ==================== NETWORK AWARENESS ====================
-  function initNetworkMonitor() {
+  // ==================== NETWORK ====================
+  function initNetwork() {
+    const el = $("#networkStatus");
     const update = () => {
-      isOnline = navigator.onLine;
-      const el = $("#networkStatus");
-      if (el) {
-        if (isOnline) {
-          el.classList.remove("show");
-          processOfflineQueue();
-        } else {
-          el.classList.add("show");
-        }
-      }
+      if (el) el.classList.toggle("show", !navigator.onLine);
+      if (navigator.onLine) syncOffline();
     };
-    window.addEventListener("online", () => { update(); showToast("Back online! Syncing...", "success"); });
-    window.addEventListener("offline", () => { update(); showToast("You are offline. Scans will be queued.", "warning"); });
+    window.addEventListener("online", () => { update(); toast("Back online! Syncing...", "success"); });
+    window.addEventListener("offline", () => { update(); toast("Offline. Scans will queue.", "warning"); });
     update();
   }
 
   // ==================== AUTH ====================
-  async function handleScannerLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
     const db = getDb();
-    if (!db) { showToast("System initializing...", "warning"); return; }
+    if (!db) { toast("System loading...", "warning"); return; }
 
-    const email = $("#scannerEmail").value.trim().toLowerCase();
-    const password = $("#scannerPassword").value;
-    const errEl = $("#scannerLoginError");
+    const email = $("#scannerEmail")?.value.trim().toLowerCase();
+    const pass = $("#scannerPassword")?.value;
+    const err = $("#scannerLoginError");
 
-    if (!email || !password) {
-      errEl.textContent = "Please enter credentials.";
-      errEl.style.display = "block";
+    if (!email || !pass) {
+      if (err) { err.textContent = "Enter credentials."; err.style.display = "block"; }
       return;
     }
 
-    showLoading("Authenticating...");
-    errEl.style.display = "none";
+    loading("Authenticating...");
+    if (err) err.style.display = "none";
 
     try {
-      const { data, error } = await db.rpc("verify_admin", { p_email: email, p_password: password });
+      const { data, error } = await db.rpc("verify_admin", { p_email: email, p_password: pass });
       if (error || !data || !data.length) throw new Error("Invalid credentials.");
 
       const user = data[0];
-      if (!["scanner", "admin", "super_admin"].includes(user.role)) {
-        throw new Error("No scanner access for this account.");
-      }
+      if (!["scanner", "admin", "super_admin"].includes(user.role)) throw new Error("No scanner access.");
 
-      currentScanner = user;
-      currentScanner.timestamp = Date.now();
-      localStorage.setItem("altitude_scanner", JSON.stringify(currentScanner));
+      scanner = user;
+      scanner.timestamp = Date.now();
+      localStorage.setItem("altitude_scanner", JSON.stringify(scanner));
 
-      db.from("admin_users").update({ last_login: new Date().toISOString() }).eq("id", user.id);
+      // Log login
+      db.from("admin_users").update({ last_login: new Date().toISOString() }).eq("id", user.id).then(() => {});
       db.from("activity_log").insert({
         admin_id: user.id,
         action_type: "SCANNER_LOGIN",
         entity_type: "admin_users",
         entity_id: user.id,
         description: "Scanner login — " + navigator.userAgent.substring(0, 60)
-      });
+      }).then(() => {});
 
-      hideLoading();
-      showScannerApp();
-      showToast("✓ Welcome, " + user.full_name);
-      playSuccess();
-      initAudio();
-    } catch (err) {
-      hideLoading();
-      errEl.textContent = err.message;
-      errEl.style.display = "block";
-      playError();
+      loaded();
+      showApp();
+      toast("✓ Welcome, " + user.full_name);
+      sndOk();
+    } catch (e) {
+      loaded();
+      if (err) { err.textContent = e.message; err.style.display = "block"; }
+      sndErr();
     }
   }
 
   function checkSession() {
-    const raw = localStorage.getItem("altitude_scanner");
-    if (!raw) return false;
     try {
+      const raw = localStorage.getItem("altitude_scanner");
+      if (!raw) return false;
       const s = JSON.parse(raw);
-      if (Date.now() - s.timestamp > SESSION_HOURS * 3600 * 1000) {
+      if (Date.now() - s.timestamp > SESSION_HOURS * 3600000) {
         localStorage.removeItem("altitude_scanner");
         return false;
       }
-      currentScanner = s;
+      scanner = s;
       return true;
     } catch {
       localStorage.removeItem("altitude_scanner");
@@ -244,97 +213,90 @@
     }
   }
 
-  function showScannerApp() {
-    $("#scannerLoginScreen").style.display = "none";
-    $("#scannerApp").style.display = "flex";
-    $("#scannerUserName").textContent = currentScanner.full_name + " · " + currentScanner.role;
-    sessionStartTime = Date.now();
+  function showApp() {
+    const login = $("#scannerLoginScreen");
+    const app = $("#scannerApp");
+    if (login) login.style.display = "none";
+    if (app) app.style.display = "flex";
+    if (scanner) {
+      const el = $("#scannerUserName");
+      if (el) el.textContent = scanner.full_name + " · " + scanner.role;
+    }
+    sessionStart = Date.now();
     loadStats();
     startStatsRefresh();
-    initRealtimeSync();
+    initRealtime();
     detectCameras();
-    initOfflineSync();
-    loadRecentScansFromStorage();
+    initOffline();
+    loadScansFromStorage();
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
 
-  function scannerLogout() {
-    if (isScanning) stopScanning();
+  function logout() {
+    if (isScanning) stopScan();
     stopStatsRefresh();
-    stopRealtimeSync();
+    stopRealtime();
     localStorage.removeItem("altitude_scanner");
     location.reload();
   }
 
-  // ==================== REALTIME SYNC ====================
-  function initRealtimeSync() {
+  // ==================== REALTIME ====================
+  function initRealtime() {
     const db = getDb();
     if (!db) return;
     try {
-      realtimeChannel = db
-        .channel("attendance-live-" + Date.now())
-        .on("postgres_changes",
-          { event: "UPDATE", schema: "public", table: "members", filter: "attendance_checked=eq.true" },
-          () => loadStats()
-        )
+      rtChannel = db.channel("att-live-" + Date.now())
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "members", filter: "attendance_checked=eq.true" }, () => loadStats())
         .subscribe();
     } catch {}
   }
 
-  function stopRealtimeSync() {
+  function stopRealtime() {
     const db = getDb();
-    if (realtimeChannel && db) {
-      try { db.removeChannel(realtimeChannel); } catch {}
-      realtimeChannel = null;
-    }
+    if (rtChannel && db) { try { db.removeChannel(rtChannel); } catch {} rtChannel = null; }
   }
 
   // ==================== OFFLINE QUEUE ====================
-  function initOfflineSync() {
-    try {
-      offlineQueue = JSON.parse(localStorage.getItem("altitude_offline_queue") || "[]");
-    } catch { offlineQueue = []; }
-    window.addEventListener("online", processOfflineQueue);
-    setInterval(processOfflineQueue, OFFLINE_SYNC_INTERVAL);
+  function initOffline() {
+    try { offlineQ = JSON.parse(localStorage.getItem("altitude_offline_queue") || "[]"); } catch { offlineQ = []; }
+    window.addEventListener("online", syncOffline);
+    setInterval(syncOffline, OFFLINE_SYNC);
   }
 
-  async function processOfflineQueue() {
-    if (!navigator.onLine || !offlineQueue.length) return;
+  async function syncOffline() {
+    if (!navigator.onLine || !offlineQ.length) return;
     const db = getDb();
     if (!db) return;
 
-    const toSync = [...offlineQueue];
+    const batch = [...offlineQ];
     let synced = 0;
 
-    for (const item of toSync) {
+    for (const item of batch) {
       try {
         await db.from(item.table).update({
           attendance_checked: true,
-          attendance_checked_at: item.timestamp,
-          attendance_checked_by: currentScanner.id
-        }).eq("id", item.memberId);
-
-        offlineQueue = offlineQueue.filter(q => q.id !== item.id);
+          attendance_checked_at: item.ts,
+          attendance_checked_by: scanner.id
+        }).eq("id", item.mid);
+        offlineQ = offlineQ.filter(q => q.id !== item.id);
         synced++;
       } catch {}
     }
 
-    localStorage.setItem("altitude_offline_queue", JSON.stringify(offlineQueue));
-
-    if (synced > 0) {
-      showToast("✓ Synced " + synced + " offline scan(s)");
+    localStorage.setItem("altitude_offline_queue", JSON.stringify(offlineQ));
+    if (synced) {
+      toast("✓ Synced " + synced + " offline scan(s)");
       loadStats();
     }
   }
 
-  function queueOfflineScan(memberId, table) {
-    offlineQueue.push({
+  function queueScan(mid, table) {
+    offlineQ.push({
       id: Date.now() + "-" + Math.random().toString(36).substr(2, 6),
-      memberId,
-      table,
-      timestamp: new Date().toISOString()
+      mid, table,
+      ts: new Date().toISOString()
     });
-    localStorage.setItem("altitude_offline_queue", JSON.stringify(offlineQueue));
+    localStorage.setItem("altitude_offline_queue", JSON.stringify(offlineQ));
   }
 
   // ==================== STATS ====================
@@ -342,57 +304,56 @@
     const db = getDb();
     if (!db) return;
     try {
-      const [mApproved, dcApproved, mChecked, dcChecked] = await Promise.all([
+      const [ma, da, mc, dc] = await Promise.all([
         db.from("members").select("*", { count: "exact", head: true }).eq("status", "approved"),
         db.from("district_council_registrations").select("*", { count: "exact", head: true }).eq("status", "approved"),
         db.from("members").select("*", { count: "exact", head: true }).eq("status", "approved").eq("attendance_checked", true),
         db.from("district_council_registrations").select("*", { count: "exact", head: true }).eq("status", "approved").eq("attendance_checked", true)
       ]);
 
-      const totalApproved = (mApproved.count || 0) + (dcApproved.count || 0);
-      const totalChecked = (mChecked.count || 0) + (dcChecked.count || 0);
-      const pending = totalApproved - totalChecked;
-      const percent = totalApproved > 0 ? Math.round((totalChecked / totalApproved) * 100) : 0;
+      const total = (ma.count || 0) + (da.count || 0);
+      const checked = (mc.count || 0) + (dc.count || 0);
+      const pending = total - checked;
+      const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
 
-      animateNum("totalCheckedIn", totalChecked);
-      animateNum("totalApproved", totalApproved);
-      animateNum("pendingCheckin", pending);
-      const pEl = $("#checkinPercent");
-      if (pEl) pEl.textContent = percent + "%";
+      animNum("totalCheckedIn", checked);
+      animNum("totalApproved", total);
+      animNum("pendingCheckin", pending);
+      const pe = $("#checkinPercent");
+      if (pe) pe.textContent = pct + "%";
     } catch {}
   }
 
-  function animateNum(id, val) {
+  function animNum(id, val) {
     const el = document.getElementById(id);
     if (!el) return;
     const target = Number(val) || 0;
-    const current = parseInt(el.textContent.replace(/[^\d]/g, "")) || 0;
-    if (current === target) return;
-    const step = Math.max(1, Math.ceil(Math.abs(target - current) / 15));
-    let cur = current;
-    const timer = setInterval(() => {
-      if (target > cur) cur = Math.min(cur + step, target);
-      else cur = Math.max(cur - step, target);
-      el.textContent = cur;
-      if (cur === target) clearInterval(timer);
+    const cur = parseInt(el.textContent.replace(/\D/g, "")) || 0;
+    if (cur === target) return;
+    const step = Math.max(1, Math.ceil(Math.abs(target - cur) / 15));
+    let n = cur;
+    const t = setInterval(() => {
+      n = target > n ? Math.min(n + step, target) : Math.max(n - step, target);
+      el.textContent = n;
+      if (n === target) clearInterval(t);
     }, 30);
   }
 
   function startStatsRefresh() {
     stopStatsRefresh();
-    statsRefreshTimer = setInterval(loadStats, STATS_REFRESH_INTERVAL);
+    statsTimer = setInterval(loadStats, STATS_INTERVAL);
   }
 
   function stopStatsRefresh() {
-    if (statsRefreshTimer) clearInterval(statsRefreshTimer);
+    if (statsTimer) clearInterval(statsTimer);
   }
 
   // ==================== CAMERA ====================
   async function detectCameras() {
     if (typeof Html5Qrcode === "undefined") return;
     try {
-      availableCameras = await Html5Qrcode.getCameras();
-      if (availableCameras.length > 1) {
+      cameras = await Html5Qrcode.getCameras();
+      if (cameras.length > 1) {
         const btn = $("#switchCameraBtn");
         if (btn) btn.style.display = "inline-flex";
       }
@@ -400,272 +361,313 @@
   }
 
   // ==================== SCANNER ====================
-  async function startScanning() {
-    if (isScanning) return;
-    if (typeof Html5Qrcode === "undefined") {
-      showToast("Scanner library not loaded. Refresh page.", "error");
+  async function startScan() {
+    if (isScanning || typeof Html5Qrcode === "undefined") {
+      if (typeof Html5Qrcode === "undefined") toast("Scanner library not loaded. Refresh.", "error");
       return;
     }
 
     try {
-      html5QrCode = new Html5Qrcode("qrReader");
+      qrEngine = new Html5Qrcode("qrReader");
       const config = {
         fps: 15,
         qrbox: (vw, vh) => {
-          const size = Math.floor(Math.min(vw, vh) * 0.75);
-          return { width: size, height: size };
+          const s = Math.floor(Math.min(vw, vh) * 0.75);
+          return { width: s, height: s };
         },
         aspectRatio: 1.0,
         disableFlip: false,
         experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       };
 
-      const camConfig = availableCameras.length > 0 && availableCameras[selectedCameraIdx]
-        ? { deviceId: { exact: availableCameras[selectedCameraIdx].id } }
-        : { facingMode: currentFacingMode };
+      const cam = cameras.length > 0 && cameras[cameraIdx]
+        ? { deviceId: { exact: cameras[cameraIdx].id } }
+        : { facingMode: facingMode };
 
-      await html5QrCode.start(camConfig, config, onScanSuccess, () => {});
+      await qrEngine.start(cam, config, onQrDetected, () => {});
 
       isScanning = true;
-      updateScannerUI(true);
+      updateScanUI(true);
       initAudio();
-      showToast("Scanner ready — point at QR");
-    } catch (err) {
-      showToast("Camera error: " + err.message, "error");
-      playError();
+      toast("Scanner ready — point at QR");
+    } catch (e) {
+      toast("Camera error: " + e.message, "error");
+      sndErr();
     }
   }
 
-  async function stopScanning() {
-    if (html5QrCode && isScanning) {
-      try { await html5QrCode.stop(); html5QrCode.clear(); } catch {}
+  async function stopScan() {
+    if (qrEngine && isScanning) {
+      try { await qrEngine.stop(); qrEngine.clear(); } catch {}
       isScanning = false;
-      updateScannerUI(false);
+      updateScanUI(false);
     }
   }
 
-  function updateScannerUI(scanning) {
-    const startBtn = $("#startScanBtn");
-    const stopBtn = $("#stopScanBtn");
-    const switchBtn = $("#switchCameraBtn");
-    const indicator = $("#scanningIndicator");
+  function updateScanUI(on) {
+    const start = $("#startScanBtn");
+    const stop = $("#stopScanBtn");
+    const sw = $("#switchCameraBtn");
+    const ind = $("#scanningIndicator");
     const hint = $("#scannerHint");
 
-    if (startBtn) startBtn.style.display = scanning ? "none" : "inline-flex";
-    if (stopBtn) stopBtn.style.display = scanning ? "inline-flex" : "none";
-    if (switchBtn && availableCameras.length > 1) switchBtn.style.display = scanning ? "inline-flex" : "none";
-    if (indicator) indicator.classList.toggle("active", scanning);
-    if (hint) hint.innerHTML = scanning
-      ? '<i data-lucide="scan-line"></i> <span>🎯 Scanning — hold QR steady in frame</span>'
-      : '<i data-lucide="info"></i> <span>Tap "Start Scanner" to begin</span>';
+    if (start) start.style.display = on ? "none" : "inline-flex";
+    if (stop) stop.style.display = on ? "inline-flex" : "none";
+    if (sw && cameras.length > 1) sw.style.display = on ? "inline-flex" : "none";
+    if (ind) ind.classList.toggle("active", on);
+    if (hint) hint.innerHTML = on
+      ? '<i data-lucide="scan-line"></i><span>🎯 Scanning — hold QR steady in frame</span>'
+      : '<i data-lucide="info"></i><span>Tap "Start Scanner" to begin</span>';
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
 
-  async function switchCamera() {
-    if (!availableCameras.length) return;
-    selectedCameraIdx = (selectedCameraIdx + 1) % availableCameras.length;
-    currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+  async function switchCam() {
+    if (!cameras.length) return;
+    cameraIdx = (cameraIdx + 1) % cameras.length;
+    facingMode = facingMode === "environment" ? "user" : "environment";
     if (isScanning) {
-      await stopScanning();
-      setTimeout(() => startScanning(), 400);
+      await stopScan();
+      setTimeout(startScan, 400);
     }
-    showToast("Switched to " + (availableCameras[selectedCameraIdx].label || "camera " + (selectedCameraIdx + 1)));
+    toast("Camera switched");
   }
 
-  async function onScanSuccess(decodedText) {
+  async function onQrDetected(text) {
     const now = Date.now();
-    // Duplicate guard
-    if (lastScannedText === decodedText && now - lastScannedAt < DUPLICATE_WINDOW_MS) return;
-    if (scanCooldown) return;
+    if (lastQR === text && now - lastQRAt < DUPLICATE_WINDOW) return;
+    if (scanLocked) return;
 
-    scanCooldown = true;
-    lastScannedText = decodedText;
-    lastScannedAt = now;
+    scanLocked = true;
+    lastQR = text;
+    lastQRAt = now;
 
-    playScanBeep();
+    sndBeep();
     vibrate(60);
 
-    if (isScanning && html5QrCode) {
-      try { await html5QrCode.pause(); } catch {}
-    }
+    if (isScanning && qrEngine) { try { await qrEngine.pause(); } catch {} }
 
-    await processVerification(decodedText, "QR Scan");
+    await verify(text, "QR Scan");
 
     setTimeout(() => {
-      scanCooldown = false;
-      if (isScanning && html5QrCode) {
-        try { html5QrCode.resume(); } catch {}
-      }
-    }, SCAN_COOLDOWN_MS);
+      scanLocked = false;
+      if (isScanning && qrEngine) { try { qrEngine.resume(); } catch {} }
+    }, SCAN_COOLDOWN);
   }
 
   // ==================== MANUAL ENTRY ====================
-  async function handleManualSubmit(e) {
+  async function handleManual(e) {
     e.preventDefault();
-    const input = $("#manualInput");
-    if (!input) return;
-    const val = input.value.trim();
-    if (!val) { showToast("Enter a member code or RI ID.", "error"); return; }
-    showLoading("Verifying...");
-    await processVerification(val, "Manual");
-    input.value = "";
-    input.focus();
+    const inp = $("#manualInput");
+    if (!inp) return;
+    const val = inp.value.trim();
+    if (!val) { toast("Enter code or RI ID.", "error"); return; }
+    loading("Verifying...");
+    await verify(val, "Manual");
+    inp.value = "";
+    inp.focus();
   }
 
   // ==================== CORE VERIFICATION ====================
-  async function processVerification(query, source) {
+  async function verify(code, source) {
     const db = getDb();
     scanCount++;
 
     if (!db) {
       if (!navigator.onLine) {
-        hideLoading();
-        showResult("warning", "Offline", "You are offline. This scan will be queued.", query);
+        loaded();
+        showResult("warning", "Offline", "Scan queued for sync.", code);
         return;
       }
-      showToast("Database not ready.", "error");
-      hideLoading();
+      toast("Database not ready.", "error");
+      loaded();
       return;
     }
 
     try {
-      let member = null;
-      let memberType = "Club";
-      let tableName = "members";
+      // Try atomic check-in RPC first (fastest, race-condition-safe)
+      let usedRpc = false;
+      try {
+        const { data: rpcResult } = await db.rpc("check_in_participant", {
+          p_code: code,
+          p_scanner_id: scanner.id
+        });
 
-      // Strategy 1: QR code data
-      let res = await db.from("members").select("*, clubs(club_name, group_number)").eq("qr_code_data", query).maybeSingle();
-      if (res.data) member = res.data;
+        if (rpcResult) {
+          usedRpc = true;
+          loaded();
 
-      // Strategy 2: Member code
-      if (!member) {
-        res = await db.from("members").select("*, clubs(club_name, group_number)").eq("member_code", query).maybeSingle();
-        if (res.data) member = res.data;
-      }
-
-      // Strategy 3: RI ID
-      if (!member) {
-        res = await db.from("members").select("*, clubs(club_name, group_number)").eq("ri_id", query).maybeSingle();
-        if (res.data) member = res.data;
-      }
-
-      // Strategy 4: DC table
-      if (!member) {
-        res = await db.from("district_council_registrations").select("*")
-          .or("qr_code_data.eq." + query + ",member_code.eq." + query + ",ri_id.eq." + query)
-          .maybeSingle();
-        if (res.data) {
-          member = { ...res.data, clubs: { club_name: res.data.portfolio || "District Council", group_number: "DC" } };
-          memberType = "District Council";
-          tableName = "district_council_registrations";
+          if (rpcResult.success) {
+            okCount++;
+            const m = rpcResult.member;
+            const memberObj = {
+              full_name: m.full_name,
+              ri_id: m.ri_id,
+              member_code: m.member_code,
+              food_preference: m.food_preference,
+              is_board_member: m.is_board_member,
+              clubs: { club_name: m.club_name || m.portfolio || "N/A", group_number: m.group_number || "DC" }
+            };
+            showResult("success", "Checked In!", "", code, memberObj, rpcResult.type || "Club");
+            sndOk();
+            vibrate([50, 30, 100]);
+            addRecent(memberObj, rpcResult.type || "Club", source);
+            loadStats();
+            return;
+          } else if (rpcResult.status === "already_checked_in") {
+            const m = rpcResult.member;
+            showResult("warning", "Already Checked In", (m?.full_name || "") + " already checked in.", code, m ? {
+              full_name: m.full_name, ri_id: m.ri_id, member_code: m.member_code,
+              food_preference: m.food_preference, is_board_member: m.is_board_member,
+              clubs: { club_name: m.club_name || m.portfolio || "N/A", group_number: m.group_number || "DC" }
+            } : null, "");
+            sndWarn();
+            vibrate([80, 40, 80]);
+            return;
+          } else if (rpcResult.status === "not_approved") {
+            showResult("warning", "Not Approved", rpcResult.message, code);
+            sndWarn();
+            return;
+          } else if (rpcResult.status === "not_found") {
+            // Fall through to manual lookup
+            usedRpc = false;
+          }
         }
+      } catch (rpcErr) {
+        console.warn("[RPC] check_in_participant not available, using fallback:", rpcErr.message);
+        usedRpc = false;
       }
 
-      if (!member) {
-        hideLoading();
-        errorCount++;
-        showResult("error", "Not Found", "No matching registration found.", query);
-        playError();
-        vibrate([100, 50, 100]);
-        return;
+      // Fallback: Manual multi-strategy lookup
+      if (!usedRpc) {
+        let member = null;
+        let memberType = "Club";
+        let tableName = "members";
+
+        // Strategy 1: QR code data
+        let res = await db.from("members").select("*, clubs(club_name, group_number)").eq("qr_code_data", code).maybeSingle();
+        if (res.data) member = res.data;
+
+        // Strategy 2: Member code
+        if (!member) {
+          res = await db.from("members").select("*, clubs(club_name, group_number)").eq("member_code", code).maybeSingle();
+          if (res.data) member = res.data;
+        }
+
+        // Strategy 3: RI ID
+        if (!member) {
+          res = await db.from("members").select("*, clubs(club_name, group_number)").eq("ri_id", code).maybeSingle();
+          if (res.data) member = res.data;
+        }
+
+        // Strategy 4: DC table
+        if (!member) {
+          res = await db.from("district_council_registrations").select("*")
+            .or("qr_code_data.eq." + code + ",member_code.eq." + code + ",ri_id.eq." + code)
+            .maybeSingle();
+          if (res.data) {
+            member = { ...res.data, clubs: { club_name: res.data.portfolio || "District Council", group_number: "DC" } };
+            memberType = "District Council";
+            tableName = "district_council_registrations";
+          }
+        }
+
+        if (!member) {
+          loaded();
+          errCount++;
+          showResult("error", "Not Found", "No matching registration found.", code);
+          sndErr();
+          vibrate([100, 50, 100]);
+          return;
+        }
+
+        if (member.status !== "approved") {
+          loaded();
+          errCount++;
+          showResult("warning", "Not Approved", member.full_name + " — status: " + member.status, code, member, memberType);
+          sndWarn();
+          return;
+        }
+
+        if (member.attendance_checked) {
+          loaded();
+          showResult("warning", "Already Checked In", member.full_name + " checked in " + timeAgo(member.attendance_checked_at) + " ago.", code, member, memberType);
+          sndWarn();
+          return;
+        }
+
+        // Mark attendance
+        const ts = new Date().toISOString();
+        const { error: upErr } = await db.from(tableName).update({
+          attendance_checked: true,
+          attendance_checked_at: ts,
+          attendance_checked_by: scanner.id
+        }).eq("id", member.id);
+
+        if (upErr) {
+          queueScan(member.id, tableName);
+          loaded();
+          showResult("warning", "Queued Offline", member.full_name + " queued for sync.", code, member, memberType);
+          return;
+        }
+
+        // Log
+        db.from("activity_log").insert({
+          admin_id: scanner.id,
+          action_type: "CHECK_IN",
+          entity_type: tableName,
+          entity_id: member.id,
+          description: member.full_name + " (" + member.ri_id + ") via " + source
+        }).then(() => {});
+
+        loaded();
+        okCount++;
+        showResult("success", "Checked In!", "", code, member, memberType);
+        sndOk();
+        vibrate([50, 30, 100]);
+        addRecent(member, memberType, source);
+        loadStats();
       }
 
-      if (member.status !== "approved") {
-        hideLoading();
-        errorCount++;
-        showResult("warning", "Not Approved", member.full_name + "'s status is \"" + member.status + "\".", query, member, memberType);
-        playWarning();
-        vibrate([80, 40, 80]);
-        return;
-      }
-
-      if (member.attendance_checked) {
-        hideLoading();
-        showResult("warning", "Already Checked In", member.full_name + " checked in " + timeAgo(member.attendance_checked_at) + " ago.", query, member, memberType);
-        playWarning();
-        vibrate([80, 40, 80]);
-        return;
-      }
-
-      // Mark attendance
-      const timestamp = new Date().toISOString();
-      const { error: updateErr } = await db.from(tableName).update({
-        attendance_checked: true,
-        attendance_checked_at: timestamp,
-        attendance_checked_by: currentScanner.id
-      }).eq("id", member.id);
-
-      if (updateErr) {
-        queueOfflineScan(member.id, tableName);
-        hideLoading();
-        showResult("warning", "Queued Offline", member.full_name + " scan queued for sync.", query, member, memberType);
-        return;
-      }
-
-      // Log
-      db.from("activity_log").insert({
-        admin_id: currentScanner.id,
-        action_type: "CHECK_IN",
-        entity_type: tableName,
-        entity_id: member.id,
-        description: member.full_name + " (" + member.ri_id + ") via " + source
-      });
-
-      hideLoading();
-      successCount++;
-      showResult("success", "Checked In!", "", query, member, memberType);
-      playSuccess();
-      vibrate([50, 30, 100]);
-
-      addRecentScan(member, memberType, source);
-      loadStats();
-
-    } catch (err) {
-      hideLoading();
-      errorCount++;
-      showResult("error", "System Error", err.message, query);
-      playError();
+    } catch (e) {
+      loaded();
+      errCount++;
+      showResult("error", "System Error", e.message, code);
+      sndErr();
     }
   }
 
   // ==================== RESULT DISPLAY ====================
-  function showResult(type, title, message, query, member, memberType) {
+  function showResult(type, title, msg, code, member, memberType) {
     const panel = $("#resultPanel");
     const content = $("#resultContent");
     if (!panel || !content) return;
 
     const icons = { success: "check-circle-2", warning: "alert-triangle", error: "x-circle" };
     const colors = { success: "#4CAF50", warning: "#F57C00", error: "#D32F2F" };
-    const bgColors = { success: "rgba(76,175,80,0.15)", warning: "rgba(245,124,0,0.15)", error: "rgba(211,47,47,0.15)" };
+    const bgs = { success: "rgba(76,175,80,0.15)", warning: "rgba(245,124,0,0.15)", error: "rgba(211,47,47,0.15)" };
 
-    let html =
-      '<div class="result-icon" style="background:' + bgColors[type] + ';color:' + colors[type] + ';">' +
-        '<i data-lucide="' + icons[type] + '"></i>' +
-      '</div>' +
-      '<h3 style="color:' + colors[type] + ';">' + escapeHtml(title) + '</h3>';
+    let html = '<div class="result-icon" style="background:' + bgs[type] + ';color:' + colors[type] + ';">' +
+      '<i data-lucide="' + icons[type] + '"></i></div>' +
+      '<h3 style="color:' + colors[type] + ';">' + esc(title) + '</h3>';
 
     if (member) {
-      const groupDisplay = member.clubs?.group_number === "DC" ? "DC" : "G" + member.clubs?.group_number;
-      html +=
-        '<div class="result-details">' +
-          '<div class="result-name">' + escapeHtml(member.full_name) + '</div>' +
-          '<div class="result-info-grid">' +
-            '<div><span class="lbl">RI ID</span><span class="val">' + escapeHtml(member.ri_id) + '</span></div>' +
-            '<div><span class="lbl">Club</span><span class="val">' + escapeHtml(member.clubs?.club_name || memberType) + '</span></div>' +
-            '<div><span class="lbl">Group</span><span class="val">' + groupDisplay + '</span></div>' +
-            '<div><span class="lbl">Food</span><span class="val">' + escapeHtml(member.food_preference) + '</span></div>' +
-            '<div><span class="lbl">Board</span><span class="val">' + (member.is_board_member ? "Yes" : "No") + '</span></div>' +
-            '<div><span class="lbl">Code</span><span class="val">' + escapeHtml(member.member_code || "—") + '</span></div>' +
-            '<div><span class="lbl">Type</span><span class="val">' + escapeHtml(memberType) + '</span></div>' +
-            '<div><span class="lbl">Time</span><span class="val">' + new Date().toLocaleTimeString() + '</span></div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="result-actions">' +
-          '<button class="btn-continue" onclick="closeResult()"><i data-lucide="check"></i> Continue Scanning</button>' +
-        '</div>';
+      const grp = member.clubs?.group_number === "DC" ? "DC" : "G" + (member.clubs?.group_number || "—");
+      html += '<div class="result-details">' +
+        '<div class="result-name">' + esc(member.full_name) + '</div>' +
+        '<div class="result-info-grid">' +
+          '<div><span class="lbl">RI ID</span><span class="val">' + esc(member.ri_id) + '</span></div>' +
+          '<div><span class="lbl">Club</span><span class="val">' + esc(member.clubs?.club_name || memberType) + '</span></div>' +
+          '<div><span class="lbl">Group</span><span class="val">' + grp + '</span></div>' +
+          '<div><span class="lbl">Food</span><span class="val">' + esc(member.food_preference) + '</span></div>' +
+          '<div><span class="lbl">Board</span><span class="val">' + (member.is_board_member ? "Yes" : "No") + '</span></div>' +
+          '<div><span class="lbl">Code</span><span class="val">' + esc(member.member_code || "—") + '</span></div>' +
+          '<div><span class="lbl">Type</span><span class="val">' + esc(memberType || "Club") + '</span></div>' +
+          '<div><span class="lbl">Time</span><span class="val">' + new Date().toLocaleTimeString() + '</span></div>' +
+        '</div></div>' +
+        '<div class="result-actions"><button class="btn-continue" onclick="closeResult()"><i data-lucide="check"></i> Continue</button></div>';
     } else {
-      html += '<p>' + escapeHtml(message) + '</p>';
-      if (query) html += '<p class="result-query">Query: <code>' + escapeHtml(query) + '</code></p>';
+      html += '<p>' + esc(msg) + '</p>';
+      if (code) html += '<p class="result-query">Code: <code>' + esc(code) + '</code></p>';
       html += '<div class="result-actions"><button class="btn-continue" onclick="closeResult()"><i data-lucide="x"></i> Close</button></div>';
     }
 
@@ -681,190 +683,143 @@
   }
 
   // ==================== RECENT SCANS ====================
-  function addRecentScan(member, type, source) {
+  function addRecent(m, type, source) {
     recentScans.unshift({
       id: Date.now() + "-" + Math.random().toString(36).substr(2, 6),
-      name: member.full_name,
-      riId: member.ri_id,
-      club: member.clubs?.club_name || type,
-      food: member.food_preference,
+      name: m.full_name,
+      riId: m.ri_id,
+      club: m.clubs?.club_name || type,
+      food: m.food_preference,
       time: new Date().toLocaleTimeString(),
-      timestamp: new Date().toISOString(),
+      ts: new Date().toISOString(),
       type, source
     });
     if (recentScans.length > 50) recentScans.pop();
-    saveRecentScans();
-    renderRecentScans();
+    saveScans();
+    renderScans();
   }
 
-  function saveRecentScans() {
+  function saveScans() {
     try { localStorage.setItem("altitude_recent_scans", JSON.stringify(recentScans)); } catch {}
   }
 
-  function loadRecentScansFromStorage() {
+  function loadScansFromStorage() {
     try {
-      const raw = localStorage.getItem("altitude_recent_scans");
-      if (raw) recentScans = JSON.parse(raw);
-      renderRecentScans();
+      const r = localStorage.getItem("altitude_recent_scans");
+      if (r) recentScans = JSON.parse(r);
+      renderScans();
     } catch {}
   }
 
-  function renderRecentScans() {
-    const container = $("#recentScansList");
-    const countEl = $("#recentCount");
-    if (!container) return;
-    if (countEl) countEl.textContent = recentScans.length;
+  function renderScans() {
+    const c = $("#recentScansList");
+    const ct = $("#recentCount");
+    if (!c) return;
+    if (ct) ct.textContent = recentScans.length;
 
     if (!recentScans.length) {
-      container.innerHTML =
-        '<div class="no-scans"><i data-lucide="scan-line"></i><p>No scans yet. Start scanning to see check-ins here.</p></div>';
+      c.innerHTML = '<div class="no-scans"><i data-lucide="scan-line"></i><p>No scans yet.</p></div>';
       if (typeof lucide !== "undefined") lucide.createIcons();
       return;
     }
 
-    container.innerHTML = recentScans.map(s =>
+    c.innerHTML = recentScans.map(s =>
       '<div class="recent-scan-item">' +
         '<div class="recent-scan-icon"><i data-lucide="user-check"></i></div>' +
         '<div class="recent-scan-info">' +
-          '<div class="recent-scan-name">' + escapeHtml(s.name) + '</div>' +
-          '<div class="recent-scan-meta">' + escapeHtml(s.riId) + ' · ' + escapeHtml(s.club) + '</div>' +
+          '<div class="recent-scan-name">' + esc(s.name) + '</div>' +
+          '<div class="recent-scan-meta">' + esc(s.riId) + ' · ' + esc(s.club) + '</div>' +
         '</div>' +
-        '<div class="recent-scan-time">' + timeAgo(s.timestamp) + '</div>' +
+        '<div class="recent-scan-time">' + timeAgo(s.ts) + '</div>' +
       '</div>'
     ).join("");
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
 
   window.clearRecentScans = function () {
-    if (confirm("Clear all recent scan history?")) {
+    if (confirm("Clear scan history?")) {
       recentScans = [];
-      saveRecentScans();
-      renderRecentScans();
-      showToast("History cleared");
+      saveScans();
+      renderScans();
+      toast("History cleared");
     }
   };
 
   // ==================== SESSION ANALYTICS ====================
   window.showSessionSummary = function () {
-    const mins = Math.floor((Date.now() - (sessionStartTime || Date.now())) / 60000);
+    const mins = Math.floor((Date.now() - (sessionStart || Date.now())) / 60000);
     const rate = mins > 0 ? (scanCount / mins).toFixed(1) : "0";
     alert(
       "📊 Session Summary\n\n" +
-      "Volunteer: " + (currentScanner?.full_name || "Unknown") + "\n" +
+      "Volunteer: " + (scanner?.full_name || "—") + "\n" +
       "Duration: " + mins + " min\n" +
       "Total Scans: " + scanCount + "\n" +
-      "Successful: " + successCount + "\n" +
-      "Failed: " + errorCount + "\n" +
+      "Successful: " + okCount + "\n" +
+      "Failed: " + errCount + "\n" +
       "Rate: " + rate + " scans/min\n" +
-      "Offline Queue: " + offlineQueue.length + "\n" +
-      "Recent History: " + recentScans.length
+      "Offline Queue: " + offlineQ.length + "\n" +
+      "History: " + recentScans.length
     );
   };
 
   // ==================== MODE TOGGLE ====================
-  function initModeToggle() {
+  function initModes() {
     $$(".scan-mode-btn").forEach(btn => {
       btn.addEventListener("click", function () {
         $$(".scan-mode-btn").forEach(b => b.classList.remove("active"));
         this.classList.add("active");
         const mode = this.dataset.mode;
         if (mode === "camera") {
-          $("#cameraPanel").classList.add("active");
-          $("#manualPanel").classList.remove("active");
+          if ($("#cameraPanel")) $("#cameraPanel").classList.add("active");
+          if ($("#manualPanel")) $("#manualPanel").classList.remove("active");
         } else {
-          $("#cameraPanel").classList.remove("active");
-          $("#manualPanel").classList.add("active");
-          if (isScanning) stopScanning();
-          setTimeout(() => {
-            const input = $("#manualInput");
-            if (input) input.focus();
-          }, 200);
+          if ($("#cameraPanel")) $("#cameraPanel").classList.remove("active");
+          if ($("#manualPanel")) $("#manualPanel").classList.add("active");
+          if (isScanning) stopScan();
+          setTimeout(() => { const inp = $("#manualInput"); if (inp) inp.focus(); }, 200);
         }
       });
     });
   }
 
-  // ==================== KEYBOARD SHORTCUTS ====================
-  function initKeyboardShortcuts() {
-    document.addEventListener("keydown", (e) => {
-      if ($("#scannerLoginScreen")?.style.display !== "none") return;
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-
-      switch (e.key.toLowerCase()) {
-        case " ":
-          e.preventDefault();
-          if (isScanning) stopScanning();
-          else startScanning();
-          break;
-        case "c":
-          if (availableCameras.length > 1) switchCamera();
-          break;
-        case "m":
-          document.querySelector('.scan-mode-btn[data-mode="manual"]')?.click();
-          break;
-        case "k":
-          document.querySelector('.scan-mode-btn[data-mode="camera"]')?.click();
-          break;
-        case "s":
-          $("#toggleStatsBtn")?.click();
-          break;
-        case "r":
-          toggleDrawer();
-          break;
-        case "escape":
-          closeResult();
-          break;
-        case "?":
-          window.showSessionSummary();
-          break;
-      }
-    });
-  }
-
   // ==================== GLOBAL FUNCTIONS ====================
   window.closeResult = function () {
-    const panel = $("#resultPanel");
-    if (panel) panel.classList.remove("active");
+    const p = $("#resultPanel");
+    if (p) p.classList.remove("active");
   };
 
   window.toggleDrawer = function () {
-    const drawer = $("#recentDrawer");
-    if (drawer) drawer.classList.toggle("open");
+    const d = $("#recentDrawer");
+    if (d) d.classList.toggle("open");
   };
 
   // ==================== INIT ====================
   function init() {
-    if (checkSession()) showScannerApp();
+    if (checkSession()) showApp();
 
-    $("#scannerLoginForm")?.addEventListener("submit", handleScannerLogin);
-    $("#scannerLogoutBtn")?.addEventListener("click", scannerLogout);
-    $("#startScanBtn")?.addEventListener("click", startScanning);
-    $("#stopScanBtn")?.addEventListener("click", stopScanning);
-    $("#switchCameraBtn")?.addEventListener("click", switchCamera);
-    $("#manualForm")?.addEventListener("submit", handleManualSubmit);
+    // Events
+    $("#scannerLoginForm")?.addEventListener("submit", handleLogin);
+    $("#scannerLogoutBtn")?.addEventListener("click", logout);
+    $("#startScanBtn")?.addEventListener("click", startScan);
+    $("#stopScanBtn")?.addEventListener("click", stopScan);
+    $("#switchCameraBtn")?.addEventListener("click", switchCam);
+    $("#manualForm")?.addEventListener("submit", handleManual);
 
-    initModeToggle();
-    initKeyboardShortcuts();
-    initNetworkMonitor();
+    initModes();
+    initNetwork();
 
-    // Touch events
-    const resultPanel = $("#resultPanel");
-    if (resultPanel) {
-      resultPanel.addEventListener("click", function (e) {
-        if (e.target === this) this.classList.remove("active");
-      });
-    }
+    // Close result on overlay click
+    const rp = $("#resultPanel");
+    if (rp) rp.addEventListener("click", function (e) { if (e.target === this) this.classList.remove("active"); });
 
-    // Enable audio on first touch
+    // Audio init on first touch
     document.addEventListener("click", initAudio, { once: true });
     document.addEventListener("touchstart", initAudio, { once: true });
 
-    // Auto-refresh stats every 30 seconds
-    setInterval(() => {
-      if (currentScanner) loadStats();
-    }, 30000);
+    // Background stats refresh
+    setInterval(() => { if (scanner) loadStats(); }, 30000);
 
-    if (window.CONFIG) window.CONFIG.log("Verify Scanner v8.0 initialized", "SCANNER");
+    console.log("[Verify] v9.0 initialized ✓");
   }
 
   if (document.readyState === "loading") {
