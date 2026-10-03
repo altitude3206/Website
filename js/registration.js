@@ -1,7 +1,7 @@
 /**
- * ALTITUDE — Registration Engine
- * Handles Club & District Council registration forms
- * Dynamic member entries, validation, payment upload, submission
+ * ALTITUDE 2026 — REGISTRATION ENGINE v7.0
+ * Enterprise Client-Side Registration Engine
+ * Live RI ID Duplicate Check · Auto Slot Validation · Payment Proof Upload · Real-time Receipts
  */
 
 (function () {
@@ -12,18 +12,26 @@
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55d253bmZvcnF5cnRkbXNyZWdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NzcxMjYsImV4cCI6MjEwNjI1MzEyNn0.c3W0_t7CL3Suh7SXq4c-1jtvLN8hNB21WJW_8gKB3wY";
 
-  let db;
+  let db = null;
   function initDb() {
     if (typeof supabase !== "undefined" && supabase.createClient) {
       db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      loadClubOptions();
     } else {
-      setTimeout(initDb, 300);
+      setTimeout(initDb, 250);
     }
   }
   initDb();
 
+  // ==================== CONFIGURATION ====================
   const FEE_PER_PERSON = 3000;
+  const EMAILJS_SERVICE_ID = "service_ojeg5q8";
+  const EMAILJS_PUBLIC_KEY = "M1tEIYjvJ0UmKdDW8";
+  const EMAILJS_TEMPLATE_NOTIFICATION = "template_notification";
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   let memberCount = 0;
+  let isSubmitting = false;
 
   // ==================== HELPERS ====================
   function $(sel) { return document.querySelector(sel); }
@@ -31,15 +39,34 @@
 
   function showToast(msg, type = "success") {
     if (window.showToast) return window.showToast(msg, type);
-    alert(msg);
+    const toast = document.createElement("div");
+    toast.className = `custom-toast ${type}`;
+    toast.style.cssText = `position:fixed;bottom:24px;right:24px;background:${type === "error" ? "#C62828" : "#2E7D32"};color:#fff;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 10px 30px rgba(0,0,0,0.3);`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
   }
 
-  function showLoading(text) {
+  function showLoading(text = "Processing...") {
     if (window.showLoading) return window.showLoading(text);
+    let overlay = $("#loadingOverlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "loadingOverlay";
+      overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999999;color:#fff;font-family:sans-serif;";
+      overlay.innerHTML = '<div style="width:48px;height:48px;border:4px solid rgba(76,175,80,0.2);border-top-color:#4CAF50;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;"></div><div id="loadingText" style="font-size:16px;font-weight:600;color:#A5D6A7;">' + text + '</div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+      document.body.appendChild(overlay);
+    } else {
+      const txt = $("#loadingText");
+      if (txt) txt.textContent = text;
+      overlay.style.display = "flex";
+    }
   }
 
   function hideLoading() {
     if (window.hideLoading) return window.hideLoading();
+    const overlay = $("#loadingOverlay");
+    if (overlay) overlay.style.display = "none";
   }
 
   function generateCode(prefix, length = 6) {
@@ -55,6 +82,90 @@
     return "ALM-" + String(Date.now()).slice(-4) + String(index).padStart(3, "0");
   }
 
+  // ==================== EMAIL ENGINE ====================
+  function loadEmailScript() {
+    return new Promise((resolve) => {
+      if (typeof emailjs !== "undefined") {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
+      script.onload = () => resolve();
+      script.onerror = () => {
+        console.warn("Failed to load EmailJS SDK dynamically.");
+        resolve();
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  async function sendEmailReceipt(toName, toEmail, subject, badge, heading, message, d1L, d1V, d2L, d2V, d3L, d3V, alertMsg = "") {
+    if (typeof emailjs === "undefined") {
+      await loadEmailScript();
+    }
+    if (typeof emailjs === "undefined") return false;
+
+    try {
+      emailjs.init(EMAILJS_PUBLIC_KEY);
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_NOTIFICATION, {
+        to_name: toName,
+        to_email: toEmail,
+        email_subject: subject,
+        badge_text: badge,
+        heading: heading,
+        main_message: message,
+        detail_1_label: d1L,
+        detail_1_val: d1V,
+        detail_2_label: d2L,
+        detail_2_val: d2V,
+        detail_3_label: d3L,
+        detail_3_val: d3V,
+        alert_display: alertMsg ? "block" : "none",
+        alert_message: alertMsg,
+        button_display: "none",
+        button_text: "",
+        button_url: ""
+      }, EMAILJS_PUBLIC_KEY);
+      return true;
+    } catch (err) {
+      console.warn("Email delivery notice:", err);
+      return false;
+    }
+  }
+
+  // ==================== CLUB OPTIONS LOADER ====================
+  async function loadClubOptions() {
+    if (!db) return;
+    const clubSelect = $("#clubSelect");
+    if (!clubSelect) return;
+
+    try {
+      const { data: clubs, error } = await db
+        .from("clubs")
+        .select("id,club_name,group_number,max_registrations,current_registrations,is_active")
+        .eq("is_active", true)
+        .order("group_number")
+        .order("club_name");
+
+      if (error || !clubs) return;
+
+      clubSelect.innerHTML = '<option value="">-- Choose Your Rotaract Club --</option>';
+      clubs.forEach((c) => {
+        const remaining = c.max_registrations - c.current_registrations;
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.dataset.available = remaining;
+        opt.dataset.group = c.group_number;
+        opt.textContent = `${c.club_name} (Group ${c.group_number}) — ${remaining > 0 ? remaining + " slots left" : "FULL"}`;
+        if (remaining <= 0) opt.disabled = true;
+        clubSelect.appendChild(opt);
+      });
+    } catch (e) {
+      console.error("Error loading clubs:", e);
+    }
+  }
+
   // ==================== MEMBER ENTRY MANAGEMENT ====================
   function addMemberEntry() {
     memberCount++;
@@ -67,10 +178,12 @@
     entry.dataset.index = memberCount;
 
     entry.innerHTML = `
-      <div class="member-entry-header">
-        <h4><i data-lucide="user"></i> Member #${memberCount}</h4>
-        <button type="button" class="remove-member-btn" onclick="window.removeMember(${memberCount})" title="Remove Member">
-          <i data-lucide="trash-2"></i>
+      <div class="member-entry-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1);">
+        <h4 style="margin:0;font-size:0.95rem;color:#81C784;display:flex;align-items:center;gap:6px;">
+          <i data-lucide="user" style="width:16px;height:16px;"></i> Member #${memberCount}
+        </h4>
+        <button type="button" class="remove-member-btn" onclick="window.removeMember(${memberCount})" title="Remove Member" style="background:none;border:none;color:#EF5350;cursor:pointer;padding:4px;">
+          <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
         </button>
       </div>
       <div class="form-grid">
@@ -80,21 +193,21 @@
         </div>
         <div class="form-group">
           <label>RI ID <span class="req">*</span></label>
-          <input type="text" name="member_ri_id_${memberCount}" required placeholder="Unique Rotary International ID" class="ri-id-input" />
-          <small class="ri-id-status" id="riStatus_${memberCount}"></small>
+          <input type="text" name="member_ri_id_${memberCount}" required placeholder="8-digit Rotary International ID" class="ri-id-input" />
+          <small class="ri-id-status" id="riStatus_${memberCount}" style="display:block;font-size:0.75rem;margin-top:4px;"></small>
         </div>
         <div class="form-group">
-          <label>Email <span class="req">*</span></label>
+          <label>Email Address <span class="req">*</span></label>
           <input type="email" name="member_email_${memberCount}" required placeholder="member@email.com" />
         </div>
         <div class="form-group">
-          <label>Contact Number <span class="req">*</span></label>
+          <label>Mobile Number <span class="req">*</span></label>
           <input type="tel" name="member_phone_${memberCount}" pattern="[0-9]{10}" required placeholder="10-digit mobile number" maxlength="10" />
         </div>
         <div class="form-group">
           <label>Food Preference <span class="req">*</span></label>
           <select name="member_food_${memberCount}" required>
-            <option value="">Select Preference</option>
+            <option value="">Select Food</option>
             <option value="VEG">Vegetarian</option>
             <option value="NON-VEG">Non-Vegetarian</option>
           </select>
@@ -102,14 +215,14 @@
         <div class="form-group">
           <label>Board Member <span class="req">*</span></label>
           <select name="member_board_${memberCount}" required>
-            <option value="">Select</option>
+            <option value="">Select Option</option>
             <option value="true">Yes</option>
             <option value="false">No</option>
           </select>
         </div>
         <div class="form-group full-width">
-          <label>Expectations from ALTITUDE</label>
-          <textarea name="member_expectations_${memberCount}" rows="2" placeholder="What do you look forward to?"></textarea>
+          <label>Expectations from ALTITUDE (Optional)</label>
+          <textarea name="member_expectations_${memberCount}" rows="2" placeholder="What are you most excited for?"></textarea>
         </div>
       </div>
     `;
@@ -117,7 +230,7 @@
     container.appendChild(entry);
     updateTotals();
 
-    // Add RI ID duplicate check listener
+    // Attach Realtime Duplicate Check
     const riInput = entry.querySelector(`[name="member_ri_id_${memberCount}"]`);
     if (riInput) {
       riInput.addEventListener("blur", function () {
@@ -129,16 +242,21 @@
   }
 
   window.removeMember = function (index) {
+    const entries = $$(".member-entry");
+    if (entries.length <= 1) {
+      showToast("You must register at least 1 member.", "error");
+      return;
+    }
     const entry = $("#member-" + index);
     if (entry) {
       entry.style.opacity = "0";
       entry.style.transform = "translateX(20px)";
-      entry.style.transition = "all 0.3s ease";
+      entry.style.transition = "all 0.25s ease";
       setTimeout(() => {
         entry.remove();
         renumberMembers();
         updateTotals();
-      }, 300);
+      }, 250);
     }
   };
 
@@ -147,7 +265,7 @@
     entries.forEach((entry, i) => {
       const num = i + 1;
       const header = entry.querySelector("h4");
-      if (header) header.innerHTML = `<i data-lucide="user"></i> Member #${num}`;
+      if (header) header.innerHTML = `<i data-lucide="user" style="width:16px;height:16px;"></i> Member #${num}`;
     });
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
@@ -159,6 +277,15 @@
     const amountEl = $("#totalAmount");
     if (totalEl) totalEl.textContent = count;
     if (amountEl) amountEl.textContent = (count * FEE_PER_PERSON).toLocaleString("en-IN");
+
+    // Live slot comparison
+    const clubSelect = $("#clubSelect");
+    if (clubSelect && clubSelect.selectedIndex > 0) {
+      const available = parseInt(clubSelect.options[clubSelect.selectedIndex].dataset.available || "0");
+      if (count > available) {
+        showToast(`Selected club has only ${available} seats left.`, "error");
+      }
+    }
   }
 
   // ==================== RI ID DUPLICATE CHECK ====================
@@ -170,36 +297,23 @@
     const cleanId = riId.trim();
 
     try {
-      // Check members table
-      const { data: memberMatch } = await db
-        .from("members")
-        .select("id")
-        .eq("ri_id", cleanId)
-        .maybeSingle();
+      const { data: mMatch } = await db.from("members").select("id").eq("ri_id", cleanId).maybeSingle();
+      const { data: dcMatch } = await db.from("district_council_registrations").select("id").eq("ri_id", cleanId).maybeSingle();
 
-      // Check DC table
-      const { data: dcMatch } = await db
-        .from("district_council_registrations")
-        .select("id")
-        .eq("ri_id", cleanId)
-        .maybeSingle();
-
-      // Check within current form entries
-      const localDuplicates = $$(".ri-id-input");
       let localDup = false;
-      localDuplicates.forEach((input) => {
+      $$(".ri-id-input").forEach((input) => {
         if (input.value.trim() === cleanId && input.name !== `member_ri_id_${memberIndex}`) {
           localDup = true;
         }
       });
 
-      if (memberMatch || dcMatch || localDup) {
-        statusEl.textContent = "This RI ID is already registered!";
-        statusEl.style.color = "var(--red)";
+      if (mMatch || dcMatch || localDup) {
+        statusEl.textContent = "⚠️ RI ID already registered or duplicated";
+        statusEl.style.color = "#EF5350";
         statusEl.style.fontWeight = "700";
       } else {
-        statusEl.textContent = "RI ID is available";
-        statusEl.style.color = "var(--green-600)";
+        statusEl.textContent = "✓ RI ID is available";
+        statusEl.style.color = "#66BB6A";
         statusEl.style.fontWeight = "600";
       }
     } catch (err) {
@@ -209,49 +323,57 @@
 
   // ==================== PAYMENT SCREENSHOT UPLOAD ====================
   async function uploadPaymentScreenshot(file, regCode) {
-    if (!db) throw new Error("Database not initialized");
-    if (!file) throw new Error("No file selected");
+    if (!db || !file) throw new Error("File or Database missing");
 
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      throw new Error("File size exceeds 10MB limit");
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error("Screenshot exceeds 10MB limit. Please compress and upload.");
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error("Invalid file type. Upload JPG, PNG, WebP, or PDF only.");
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      throw new Error("Invalid file type. Please upload a JPG, PNG, or PDF.");
     }
 
     const ext = file.name.split(".").pop();
-    const fileName = `payment_${regCode}_${Date.now()}.${ext}`;
-    const filePath = `registrations/${fileName}`;
+    const filePath = `receipts/${regCode}_${Date.now()}.${ext}`;
 
-    const { data, error } = await db.storage
+    const { error: uploadErr } = await db.storage
       .from("payment-screenshots")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type,
-      });
+      .upload(filePath, file, { cacheControl: "3600", upsert: false });
 
-    if (error) {
-      console.error("Upload error:", error);
-      throw new Error("Failed to upload payment screenshot: " + error.message);
+    if (uploadErr) {
+      console.warn("Upload storage failure:", uploadErr.message);
+      return "upload_failed_" + Date.now();
     }
 
-    // Get public URL
-    const { data: urlData } = db.storage
-      .from("payment-screenshots")
-      .getPublicUrl(filePath);
-
+    const { data: urlData } = db.storage.from("payment-screenshots").getPublicUrl(filePath);
     return urlData.publicUrl;
   }
 
-  // ==================== CLUB REGISTRATION SUBMISSION ====================
+  // ==================== PAYMENT PREVIEW HANDLER ====================
+  function handleScreenshotPreview(inputEl, previewContainerId) {
+    const file = inputEl.files[0];
+    const previewBox = $(`#${previewContainerId}`);
+    if (!file || !previewBox) return;
+
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewBox.innerHTML = `<img src="${e.target.result}" style="max-height:120px;border-radius:8px;margin-top:8px;border:1px solid rgba(255,255,255,0.2);" alt="Preview"/>`;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      previewBox.innerHTML = `<p style="font-size:12px;color:#81C784;margin-top:6px;">📄 ${file.name} selected</p>`;
+    }
+  }
+
+  // ==================== SUBMIT CLUB REGISTRATION ====================
   async function submitClubRegistration(e) {
     e.preventDefault();
+    if (isSubmitting) return;
+
     if (!db) {
-      showToast("System not ready. Please refresh the page.", "error");
+      showToast("Database connecting... Please retry in a few seconds.", "error");
       return;
     }
 
@@ -259,11 +381,10 @@
     const entries = $$(".member-entry");
 
     if (entries.length === 0) {
-      showToast("Please add at least one member to register.", "error");
+      showToast("Please add at least one member.", "error");
       return;
     }
 
-    // Collect registrant info
     const registrantRole = form.registrant_role.value;
     const clubId = form.club_id.value;
     const registrantName = form.registrant_name.value.trim();
@@ -271,24 +392,24 @@
     const registrantEmail = form.registrant_email.value.trim();
     const registrantPhone = form.registrant_phone.value.trim();
     const transactionId = form.transaction_id.value.trim();
-    const screenshotFile = form.payment_screenshot.files[0];
+    const screenshotFile = form.payment_screenshot?.files[0];
 
-    // Validate
     if (!registrantRole || !clubId || !registrantName || !registrantRiId || !registrantEmail || !registrantPhone || !transactionId || !screenshotFile) {
-      showToast("Please fill all required fields including payment details.", "error");
+      showToast("Please complete all required fields including payment proof.", "error");
       return;
     }
 
-    // Check club slot availability
+    // Check club slots
     const clubSelect = form.club_id;
     const selectedOption = clubSelect.options[clubSelect.selectedIndex];
+    const clubName = selectedOption.textContent;
     const available = parseInt(selectedOption.dataset.available || "0");
     if (entries.length > available) {
-      showToast(`Only ${available} slots available for this club. You are trying to register ${entries.length} members.`, "error");
+      showToast(`Only ${available} slots remaining for this club. You are submitting ${entries.length} members.`, "error");
       return;
     }
 
-    // Collect member data
+    // Validate members
     const members = [];
     const riIds = new Set();
     let hasError = false;
@@ -304,19 +425,19 @@
       const expectations = form[`member_expectations_${idx}`]?.value.trim() || "";
 
       if (!name || !riId || !email || !phone || !food || !board) {
-        showToast(`Please fill all required fields for Member #${i + 1}.`, "error");
+        showToast(`Please fill all fields for Member #${i + 1}.`, "error");
         hasError = true;
         return;
       }
 
       if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
-        showToast(`Invalid contact number for Member #${i + 1}. Must be 10 digits.`, "error");
+        showToast(`Member #${i + 1} phone must be 10 digits.`, "error");
         hasError = true;
         return;
       }
 
       if (riIds.has(riId)) {
-        showToast(`Duplicate RI ID "${riId}" found. Each member must have a unique RI ID.`, "error");
+        showToast(`Duplicate RI ID "${riId}" detected in your form.`, "error");
         hasError = true;
         return;
       }
@@ -335,24 +456,25 @@
 
     if (hasError) return;
 
-    showLoading("Submitting registration... This may take a moment.");
+    isSubmitting = true;
+    showLoading("Submitting Registration...");
 
     try {
       const regCode = generateCode("ALT");
       const totalAmount = members.length * FEE_PER_PERSON;
 
-      // Upload payment screenshot
+      // 1. Upload Screenshot
       showLoading("Uploading payment proof...");
       let screenshotUrl = "";
       try {
         screenshotUrl = await uploadPaymentScreenshot(screenshotFile, regCode);
-      } catch (uploadErr) {
-        console.warn("Screenshot upload failed, continuing without:", uploadErr.message);
+      } catch (err) {
+        console.warn("Screenshot upload failed:", err.message);
         screenshotUrl = "upload_failed_" + Date.now();
       }
 
-      // Insert registration batch
-      showLoading("Saving registration...");
+      // 2. Insert Batch Registration Record
+      showLoading("Saving registration data...");
       const { data: regData, error: regError } = await db
         .from("registrations")
         .insert({
@@ -372,12 +494,9 @@
         .select()
         .single();
 
-      if (regError) {
-        console.error("Registration insert error:", regError);
-        throw new Error("Failed to save registration: " + regError.message);
-      }
+      if (regError) throw new Error(regError.message);
 
-      // Insert all members
+      // 3. Insert Members
       showLoading("Registering members...");
       const memberRows = members.map((m, i) => ({
         registration_id: regData.id,
@@ -396,44 +515,63 @@
       }));
 
       const { error: memError } = await db.from("members").insert(memberRows);
-
       if (memError) {
-        console.error("Members insert error:", memError);
-        // If RI ID duplicate at DB level
         if (memError.code === "23505") {
-          throw new Error("One or more RI IDs are already registered in the system. Please check and use unique RI IDs.");
+          throw new Error("One or more RI IDs are already registered in the system.");
         }
-        throw new Error("Failed to save member entries: " + memError.message);
+        throw new Error(memError.message);
       }
 
-      // Success!
+      // 4. Send Confirmation Email Receipt
+      showLoading("Sending email receipt...");
+      await sendEmailReceipt(
+        registrantName,
+        registrantEmail,
+        "📩 Registration Received — ALTITUDE 2026",
+        "Pending Verification",
+        "We've Received Your Registration! 🏔️",
+        `Thank you for registering for ALTITUDE 2026. Your payment proof (Transaction ID: ${transactionId}) is currently being verified by our treasury team. Once verified, event passes will be delivered via email.`,
+        "Registration Code",
+        regCode,
+        "Club Details",
+        clubName || "Rotaract Club",
+        "Total Fee",
+        `₹${totalAmount.toLocaleString("en-IN")}`,
+        "Verification typically completes within 24-48 hours. Please save your registration code for tracking."
+      );
+
       hideLoading();
+
+      // UI Updates
       const regIdDisplay = $("#regIdDisplay");
       if (regIdDisplay) regIdDisplay.textContent = regCode;
       const modal = $("#successModal");
       if (modal) modal.classList.add("active");
 
-      // Reset form
       form.reset();
       const container = $("#membersContainer");
       if (container) container.innerHTML = "";
       memberCount = 0;
       updateTotals();
+      loadClubOptions();
 
-      showToast("Registration submitted successfully!", "success");
-
+      showToast("Registration submitted successfully!");
     } catch (err) {
       hideLoading();
-      console.error("Registration error:", err);
+      console.error("Submission Error:", err);
       showToast(err.message || "Registration failed. Please try again.", "error");
+    } finally {
+      isSubmitting = false;
     }
   }
 
-  // ==================== DISTRICT COUNCIL REGISTRATION ====================
+  // ==================== SUBMIT DC REGISTRATION ====================
   async function submitDcRegistration(e) {
     e.preventDefault();
+    if (isSubmitting) return;
+
     if (!db) {
-      showToast("System not ready. Please refresh the page.", "error");
+      showToast("Database connecting... Please retry.", "error");
       return;
     }
 
@@ -441,29 +579,28 @@
     const fullName = form.full_name.value.trim();
     const riId = form.ri_id.value.trim();
     const portfolio = form.portfolio.value.trim();
-    const clubName = form.club_name.value.trim();
+    const clubName = form.club_name?.value.trim() || "";
     const email = form.email.value.trim();
     const phone = form.contact_number.value.trim();
     const food = form.food_preference.value;
-    const expectations = form.expectations.value.trim();
+    const expectations = form.expectations?.value.trim() || "";
     const transactionId = form.transaction_id.value.trim();
-    const screenshotFile = form.payment_screenshot.files[0];
+    const screenshotFile = form.payment_screenshot?.files[0];
 
-    // Validate
     if (!fullName || !riId || !portfolio || !email || !phone || !food || !transactionId || !screenshotFile) {
-      showToast("Please fill all required fields.", "error");
+      showToast("Please complete all required fields.", "error");
       return;
     }
 
     if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
-      showToast("Contact number must be exactly 10 digits.", "error");
+      showToast("Mobile number must be 10 digits.", "error");
       return;
     }
 
-    showLoading("Submitting District Council registration...");
+    isSubmitting = true;
+    showLoading("Submitting DC Registration...");
 
     try {
-      // Check for duplicate RI ID
       const { data: existing } = await db
         .from("district_council_registrations")
         .select("id")
@@ -471,23 +608,23 @@
         .maybeSingle();
 
       if (existing) {
-        throw new Error("This RI ID is already registered as a District Council member.");
+        throw new Error("This RI ID is already registered as District Council.");
       }
 
       const regCode = generateCode("ADC");
 
-      // Upload screenshot
+      // 1. Upload Screenshot
       showLoading("Uploading payment proof...");
       let screenshotUrl = "";
       try {
         screenshotUrl = await uploadPaymentScreenshot(screenshotFile, regCode);
-      } catch (uploadErr) {
-        console.warn("Upload failed:", uploadErr.message);
+      } catch (err) {
+        console.warn("Screenshot upload failed:", err.message);
         screenshotUrl = "upload_failed_" + Date.now();
       }
 
-      // Insert DC registration
-      showLoading("Saving registration...");
+      // 2. Insert DC Registration Record
+      showLoading("Saving details...");
       const { error: dcError } = await db
         .from("district_council_registrations")
         .insert({
@@ -509,27 +646,41 @@
           qr_code_data: generateCode("QR", 10),
         });
 
-      if (dcError) {
-        console.error("DC registration error:", dcError);
-        if (dcError.code === "23505") {
-          throw new Error("This RI ID is already registered in the system.");
-        }
-        throw new Error("Failed to save registration: " + dcError.message);
-      }
+      if (dcError) throw new Error(dcError.message);
+
+      // 3. Send Email Receipt
+      showLoading("Sending email receipt...");
+      await sendEmailReceipt(
+        fullName,
+        email,
+        "📩 DC Registration Received — ALTITUDE 2026",
+        "Pending Verification",
+        "We've Received Your DC Registration! 👑",
+        `Thank you for registering for ALTITUDE 2026 as District Council. Your payment proof (Transaction ID: ${transactionId}) is being verified by our treasury team. Your digital pass will be issued once approved.`,
+        "Registration Code",
+        regCode,
+        "Portfolio",
+        portfolio,
+        "Amount Paid",
+        `₹${FEE_PER_PERSON.toLocaleString("en-IN")}`,
+        "Verification typically completes within 24-48 hours."
+      );
 
       hideLoading();
+
       const regIdDisplay = $("#regIdDisplay");
       if (regIdDisplay) regIdDisplay.textContent = regCode;
       const modal = $("#successModal");
       if (modal) modal.classList.add("active");
 
       form.reset();
-      showToast("District Council registration submitted!", "success");
-
+      showToast("District Council registration submitted!");
     } catch (err) {
       hideLoading();
-      console.error("DC registration error:", err);
+      console.error("DC Error:", err);
       showToast(err.message || "Registration failed. Please try again.", "error");
+    } finally {
+      isSubmitting = false;
     }
   }
 
@@ -541,20 +692,40 @@
       addBtn.addEventListener("click", addMemberEntry);
     }
 
-    // Club Registration Form
+    // Forms
     const clubForm = $("#clubRegForm");
     if (clubForm) {
       clubForm.addEventListener("submit", submitClubRegistration);
     }
 
-    // DC Registration Form
     const dcForm = $("#dcRegForm");
     if (dcForm) {
       dcForm.addEventListener("submit", submitDcRegistration);
     }
 
-    // Add first member entry by default
-    if ($("#membersContainer")) {
+    // Screenshot Previews
+    const clubScreenshot = $("#paymentScreenshot");
+    if (clubScreenshot) {
+      clubScreenshot.addEventListener("change", function () {
+        handleScreenshotPreview(this, "clubScreenshotPreview");
+      });
+    }
+
+    const dcScreenshot = $("#dcPaymentScreenshot");
+    if (dcScreenshot) {
+      dcScreenshot.addEventListener("change", function () {
+        handleScreenshotPreview(this, "dcScreenshotPreview");
+      });
+    }
+
+    // Club selection change listener
+    const clubSelect = $("#clubSelect");
+    if (clubSelect) {
+      clubSelect.addEventListener("change", updateTotals);
+    }
+
+    // Initial member row
+    if ($("#membersContainer") && $$(".member-entry").length === 0) {
       addMemberEntry();
     }
   }
