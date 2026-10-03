@@ -1,7 +1,7 @@
 /**
- * ALTITUDE - QUANTUM ADMIN CONSOLE v7.0
- * Enterprise Management System with Treasury Module
- * Real-time sync · AI Insights · Bulk Ops · Command Palette · Advanced Analytics
+ * ALTITUDE — QUANTUM ADMIN CONSOLE v7.0
+ * Ultimate Premium Enterprise-Grade Management System
+ * Real-time · AI-Insights · Bulk Ops · Command Palette · Advanced Analytics · Treasury
  */
 
 (function () {
@@ -26,7 +26,7 @@
 
   // ==================== CONFIG ====================
   const EMAILJS_SERVICE_ID = "service_ojeg5q8";
-  const EMAILJS_PRIVATE_KEY = "yHsYhjdAwcEms79c9jroA";
+  const EMAILJS_PUBLIC_KEY = "M1tEIYjvJ0UmKdDW8";
   const EMAILJS_TEMPLATE_NOTIFICATION = "template_notification";
 
   const SESSION_HOURS = 8;
@@ -39,6 +39,7 @@
   let isScanning = false;
   let autoRefreshTimer = null;
   let realtimeChannels = [];
+  let commandPaletteOpen = false;
   let notifications = [];
 
   window._cache = {
@@ -176,17 +177,69 @@
   }
   window.copyToClipboard = copyToClipboard;
 
+  // ==================== NOTIFICATION SYSTEM ====================
+  function addNotification(title, message, type = "info") {
+    notifications.unshift({
+      id: Date.now(),
+      title, message, type,
+      timestamp: new Date(),
+      read: false
+    });
+    if (notifications.length > 20) notifications.pop();
+    updateNotificationBadge();
+  }
+
+  function updateNotificationBadge() {
+    const badge = $("#notifBadge");
+    if (badge) {
+      const unread = notifications.filter(n => !n.read).length;
+      badge.textContent = unread;
+      badge.style.display = unread > 0 ? "flex" : "none";
+    }
+  }
+
+  window.showNotifications = function () {
+    const html = notifications.length
+      ? notifications.map(n =>
+        '<div class="notif-item ' + (n.read ? "read" : "") + '" onclick="markNotifRead(' + n.id + ')">' +
+          '<div class="notif-icon ' + n.type + '"><i data-lucide="' + (n.type === "success" ? "check-circle" : n.type === "warning" ? "alert-triangle" : "info") + '"></i></div>' +
+          '<div class="notif-content">' +
+            '<div class="notif-title">' + esc(n.title) + '</div>' +
+            '<div class="notif-msg">' + esc(n.message) + '</div>' +
+            '<div class="notif-time">' + timeAgo(n.timestamp) + '</div>' +
+          '</div>' +
+        '</div>'
+      ).join("")
+      : '<div style="text-align:center;padding:var(--space-2xl);color:var(--gray-400);"><i data-lucide="bell-off" style="width:40px;height:40px;margin-bottom:var(--space-sm);"></i><p>No notifications yet</p></div>';
+
+    openModal("Notifications", html, '<button class="btn btn-secondary" onclick="clearAllNotifs()">Clear All</button>');
+  };
+
+  window.markNotifRead = function (id) {
+    const n = notifications.find(x => x.id === id);
+    if (n) n.read = true;
+    updateNotificationBadge();
+  };
+
+  window.clearAllNotifs = function () {
+    notifications = [];
+    updateNotificationBadge();
+    closeModal();
+    showToast("Notifications cleared");
+  };
+
   // ==================== EMAIL DISPATCH ====================
   async function sendApprovalEmail(member, clubName) {
     if (typeof emailjs === "undefined" || !member.email) return false;
     try {
+      emailjs.init(EMAILJS_PUBLIC_KEY);
       const passLink = window.location.origin + "/pass.html?ri_id=" + encodeURIComponent(member.ri_id) + "&email=" + encodeURIComponent(member.email);
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_NOTIFICATION, {
         to_name: member.full_name,
         to_email: member.email,
-        email_subject: "🎉 Registration Approved - ALTITUDE",
+        email_subject: "🎉 Registration Approved — ALTITUDE 2026",
         badge_text: "Registration Approved",
-        heading: "Welcome to ALTITUDE! 🏔️",
+        heading: "Welcome to ALTITUDE 2026! 🏔️",
         main_message: "Congratulations! Your registration has been verified and approved. You are confirmed for the trekking event on December 12–13, 2026 at Ooty.",
         detail_1_label: "Registration ID",
         detail_1_val: member.ri_id,
@@ -199,18 +252,22 @@
         button_display: "block",
         button_text: "🎫 Download Your Event Pass",
         button_url: passLink
-      }, EMAILJS_PRIVATE_KEY);
+      }, EMAILJS_PUBLIC_KEY);
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      console.error("sendApprovalEmail error:", e);
+      return false;
+    }
   }
 
   async function sendRejectionEmail(member, reason) {
     if (typeof emailjs === "undefined" || !member.email) return false;
     try {
+      emailjs.init(EMAILJS_PUBLIC_KEY);
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_NOTIFICATION, {
         to_name: member.full_name,
         to_email: member.email,
-        email_subject: "⚠️ Registration Update - ALTITUDE",
+        email_subject: "⚠️ Registration Update — ALTITUDE 2026",
         badge_text: "Action Required",
         heading: "Registration Status Update",
         main_message: "We regret to inform you that your registration could not be approved at this time.",
@@ -225,9 +282,12 @@
         button_display: "none",
         button_text: "",
         button_url: ""
-      }, EMAILJS_PRIVATE_KEY);
+      }, EMAILJS_PUBLIC_KEY);
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      console.error("sendRejectionEmail error:", e);
+      return false;
+    }
   }
 
   // ==================== AUTHENTICATION ====================
@@ -263,6 +323,7 @@
       hideLoading();
       showDashboard();
       showToast("Welcome back, " + currentAdmin.full_name);
+      addNotification("Login Successful", "You have logged in as " + currentAdmin.role, "success");
     } catch (err) {
       hideLoading();
       errEl.textContent = err.message;
@@ -301,6 +362,8 @@
     navigateTo("dashboard");
     startAutoRefresh();
     initRealtimeSubscriptions();
+    injectAdvancedUI();
+    initKeyboardShortcuts();
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
 
@@ -312,6 +375,156 @@
     location.reload();
   }
 
+  // ==================== ADVANCED UI INJECTION ====================
+  function injectAdvancedUI() {
+    const topbarActions = $(".topbar-actions");
+    if (topbarActions && !$("#notifBell")) {
+      const html =
+        '<button class="btn-icon" id="cmdPaletteBtn" title="Command Palette (Ctrl+K)">' +
+          '<i data-lucide="command"></i>' +
+        '</button>' +
+        '<button class="btn-icon" id="notifBell" title="Notifications" onclick="showNotifications()" style="position:relative;">' +
+          '<i data-lucide="bell"></i>' +
+          '<span id="notifBadge" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:0.6rem;font-weight:700;padding:2px 5px;border-radius:8px;display:none;min-width:16px;justify-content:center;align-items:center;">0</span>' +
+        '</button>';
+      topbarActions.insertAdjacentHTML("afterbegin", html);
+      $("#cmdPaletteBtn")?.addEventListener("click", openCommandPalette);
+      if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+  }
+
+  // ==================== COMMAND PALETTE (Ctrl+K) ====================
+  function openCommandPalette() {
+    if (commandPaletteOpen) return;
+    commandPaletteOpen = true;
+
+    const commands = [
+      { name: "Go to Dashboard", icon: "layout-dashboard", action: () => navigateTo("dashboard") },
+      { name: "View Club Registrations", icon: "users-round", action: () => navigateTo("clubReg") },
+      { name: "View District Council", icon: "crown", action: () => navigateTo("dcReg") },
+      { name: "View All Members", icon: "user-check", action: () => navigateTo("members") },
+      { name: "Manage Clubs", icon: "building-2", action: () => navigateTo("clubs") },
+      { name: "View Attendance", icon: "clipboard-check", action: () => navigateTo("attendance") },
+      { name: "Open QR Scanner", icon: "scan-line", action: () => navigateTo("scanner") },
+      { name: "Treasury & Accounts", icon: "indian-rupee", action: () => navigateTo("treasury") },
+      { name: "Edit Site Content", icon: "file-text", action: () => navigateTo("siteContent") },
+      { name: "Manage Agenda", icon: "calendar-clock", action: () => navigateTo("agenda") },
+      { name: "Manage Announcements", icon: "megaphone", action: () => navigateTo("announcements") },
+      { name: "View Activity Log", icon: "activity", action: () => navigateTo("activity") },
+      { name: "Export All Members", icon: "download", action: () => $("#exportMembers")?.click() },
+      { name: "Export Full Ledger", icon: "file-spreadsheet", action: () => window.exportLedger && window.exportLedger() },
+      { name: "Sync Registration Revenue", icon: "refresh-cw", action: () => $("#syncRegRevenue")?.click() },
+      { name: "Refresh Dashboard", icon: "refresh-cw", action: () => loadDashboard() },
+      { name: "Logout", icon: "log-out", action: logout }
+    ];
+
+    const html =
+      '<div class="cmd-palette-search"><i data-lucide="search"></i><input type="text" id="cmdSearch" placeholder="Type a command..." autocomplete="off" /></div>' +
+      '<div id="cmdResults" class="cmd-results">' +
+        commands.map((c, i) =>
+          '<div class="cmd-item ' + (i === 0 ? "active" : "") + '" data-idx="' + i + '"><i data-lucide="' + c.icon + '"></i><span>' + c.name + '</span></div>'
+        ).join("") +
+      '</div>';
+
+    openModal("Command Palette", html, '<small style="color:var(--gray-400);">Use ↑↓ to navigate, Enter to select, Esc to close</small>');
+
+    setTimeout(() => {
+      const search = $("#cmdSearch");
+      if (search) {
+        search.focus();
+        search.addEventListener("input", () => filterCommands(commands));
+        search.addEventListener("keydown", (e) => handleCmdKeydown(e, commands));
+      }
+      $$(".cmd-item").forEach(item => {
+        item.addEventListener("click", () => {
+          const idx = parseInt(item.dataset.idx);
+          if (commands[idx]) { commands[idx].action(); closeCommandPalette(); }
+        });
+      });
+    }, 100);
+  }
+
+  function filterCommands(commands) {
+    const q = $("#cmdSearch").value.toLowerCase();
+    const filtered = q ? commands.filter(c => c.name.toLowerCase().includes(q)) : commands;
+    const results = $("#cmdResults");
+    if (results) {
+      results.innerHTML = filtered.length
+        ? filtered.map((c, i) => '<div class="cmd-item ' + (i === 0 ? "active" : "") + '" data-idx="' + commands.indexOf(c) + '"><i data-lucide="' + c.icon + '"></i><span>' + c.name + '</span></div>').join("")
+        : '<div style="text-align:center;padding:var(--space-lg);color:var(--gray-400);">No commands found</div>';
+      if (typeof lucide !== "undefined") lucide.createIcons();
+      $$(".cmd-item").forEach(item => {
+        item.addEventListener("click", () => {
+          const idx = parseInt(item.dataset.idx);
+          if (commands[idx]) { commands[idx].action(); closeCommandPalette(); }
+        });
+      });
+    }
+  }
+
+  function handleCmdKeydown(e, commands) {
+    const items = $$(".cmd-item");
+    let activeIdx = Array.from(items).findIndex(i => i.classList.contains("active"));
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      items[activeIdx]?.classList.remove("active");
+      activeIdx = (activeIdx + 1) % items.length;
+      items[activeIdx]?.classList.add("active");
+      items[activeIdx]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      items[activeIdx]?.classList.remove("active");
+      activeIdx = (activeIdx - 1 + items.length) % items.length;
+      items[activeIdx]?.classList.add("active");
+      items[activeIdx]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const item = items[activeIdx];
+      if (item) {
+        const idx = parseInt(item.dataset.idx);
+        if (commands[idx]) { commands[idx].action(); closeCommandPalette(); }
+      }
+    } else if (e.key === "Escape") {
+      closeCommandPalette();
+    }
+  }
+
+  function closeCommandPalette() {
+    commandPaletteOpen = false;
+    closeModal();
+  }
+
+  // ==================== KEYBOARD SHORTCUTS ====================
+  function initKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+      if ($("#loginScreen").style.display !== "none") return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        openCommandPalette();
+      }
+      else if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+        e.preventDefault();
+        const searchInputs = ["membersSearch", "clubRegSearch", "dcRegSearch", "clubsSearch", "trsSearch", "atsSearch"];
+        for (const id of searchInputs) {
+          const el = document.getElementById(id);
+          if (el && el.offsetParent !== null) { el.focus(); break; }
+        }
+      }
+      else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "R") {
+        e.preventDefault();
+        const view = $(".view.active")?.id?.replace("view-", "");
+        if (view) navigateTo(view);
+      }
+      else if (e.key === "Escape") {
+        const modal = $("#adminModal");
+        const confirm = $("#confirmDialog");
+        if (modal?.classList.contains("active")) closeModal();
+        else if (confirm?.classList.contains("active")) closeConfirm();
+      }
+    });
+  }
+
   // ==================== REALTIME ====================
   function initRealtimeSubscriptions() {
     if (!REALTIME_ENABLED) return;
@@ -320,12 +533,30 @@
     try {
       const regChannel = db.channel("registrations-changes")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "registrations" }, () => {
+          addNotification("New Registration!", "A new club registration has arrived", "info");
           showToast("🔔 New registration received!", "success");
           if ($(".view.active")?.id === "view-dashboard") loadDashboard();
           if ($(".view.active")?.id === "view-clubReg") loadClubRegistrations();
         }).subscribe();
-      realtimeChannels.push(regChannel);
-    } catch (e) {}
+
+      const dcChannel = db.channel("dc-changes")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "district_council_registrations" }, () => {
+          addNotification("New DC Registration!", "A new district council registration has arrived", "info");
+          showToast("🔔 New DC registration received!", "success");
+          if ($(".view.active")?.id === "view-dcReg") loadDcRegistrations();
+        }).subscribe();
+
+      const trsChannel = db.channel("treasury-changes")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "treasury_transactions" }, () => {
+          addNotification("Treasury Update", "A new transaction was recorded", "info");
+          showToast("💸 Treasury transaction recorded!", "success");
+          if ($(".view.active")?.id === "view-treasury") loadTreasury();
+        }).subscribe();
+
+      realtimeChannels.push(regChannel, dcChannel, trsChannel);
+    } catch (e) {
+      console.error("Failed to initialize realtime subscriptions:", e);
+    }
   }
 
   function stopRealtimeSubscriptions() {
@@ -366,7 +597,7 @@
       attendance: "Attendance",
       scanner: "QR Scanner",
       treasury: "Treasury & Accounts",
-      siteContent: "Site Content",
+      siteContent: "Site Content Editor",
       agenda: "Agenda",
       colourHunt: "Colour Hunt",
       treasure: "Treasure Hunt",
@@ -969,7 +1200,7 @@
     const tb = $("#treasuryTable tbody");
     if (!tb) return;
     if (!data.length) {
-      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;padding:24px;">No transactions yet</td></tr>';
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;padding:24px;">No transactions recorded yet</td></tr>';
       return;
     }
     const fmt = (v) => "₹" + (Number(v) || 0).toLocaleString("en-IN");
@@ -1036,7 +1267,7 @@
       '<div class="form-group"><label>Transaction Type *</label><select id="trsType" onchange="window.autoCategory()">' +
         types.map(t => '<option value="' + t + '"' + (d?.transaction_type === t ? " selected" : "") + '>' + t.replace(/_/g, " ") + '</option>').join("") +
       '</select></div>' +
-      '<div class="form-group"><label>Category</label><select id="trsCat">' +
+      '<div class="form-group"><label>Category</label><select id="trsCat" onchange="window.calcNetAmount()">' +
         ["INCOME","EXPENSE","ADJUSTMENT"].map(c => '<option value="' + c + '"' + (d?.category === c ? " selected" : "") + '>' + c + '</option>').join("") +
       '</select></div>' +
       '<div class="form-group full-width"><label>Description *</label><input id="trsDesc" value="' + esc(d?.description || "") + '" placeholder="Brief description"/></div>' +
@@ -1065,6 +1296,7 @@
     if (type.includes("EXPENSE") || type === "REFUND" || type === "ADVANCE_PAID") cat.value = "EXPENSE";
     else if (type === "ADJUSTMENT") cat.value = "ADJUSTMENT";
     else cat.value = "INCOME";
+    window.calcNetAmount();
   };
 
   window.calcNetAmount = function () {
@@ -1077,13 +1309,13 @@
     if (preview) preview.textContent = "₹" + net.toLocaleString("en-IN", { minimumFractionDigits: 2 });
   };
 
-  async function loadBudgetHeadOptions() {
+  async function loadBudgetHeadOptions(selected) {
     const db = getDb();
     if (!db) return;
     const { data } = await db.from("budget_heads").select("head_name").order("sort_order");
     const sel = $("#trsBudgetHead");
     if (sel && data) {
-      sel.innerHTML = '<option value="">Select Head</option>' + data.map(h => '<option value="' + h.head_name + '">' + h.head_name + '</option>').join("");
+      sel.innerHTML = '<option value="">Select Head</option>' + data.map(h => '<option value="' + h.head_name + '"' + (selected === h.head_name ? " selected" : "") + '>' + h.head_name + '</option>').join("");
     }
   }
 
@@ -1131,8 +1363,7 @@
     openModal("Edit Transaction", getTransactionFormHtml(data),
       '<button class="btn btn-primary" onclick="window.updateTransaction(\'' + id + '\')">Update</button>', "large");
     setTimeout(() => {
-      loadBudgetHeadOptions();
-      if (data.budget_head) setTimeout(() => { const sel = $("#trsBudgetHead"); if (sel) sel.value = data.budget_head; }, 300);
+      loadBudgetHeadOptions(data.budget_head);
       window.calcNetAmount();
     }, 100);
   };
@@ -1197,6 +1428,7 @@
     showToast("Verified!"); loadTreasury();
   };
 
+  // Sync Registration Revenue
   $("#syncRegRevenue")?.addEventListener("click", () => {
     const db = getDb();
     if (!db) return;
@@ -1245,7 +1477,8 @@
   trsCatF?.addEventListener("change", filterTreasury);
   trsVerF?.addEventListener("change", filterTreasury);
 
-  $("#exportTreasuryBtn")?.addEventListener("click", () => {
+  $("#exportTreasuryBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
     const dd = $("#exportDropdown");
     if (dd) dd.style.display = dd.style.display === "block" ? "none" : "block";
   });
@@ -1399,6 +1632,7 @@
   // ==================== SIMPLE CRUD SECTIONS ====================
   async function loadSiteContentEditor() {
     const db = getDb();
+    if (!db) return;
     const { data } = await db.from("site_content").select("*").order("section_key");
     const c = $("#siteContentList");
     if (!c || !data) return;
@@ -1435,6 +1669,7 @@
 
   async function loadAgendaEditor() {
     const db = getDb();
+    if (!db) return;
     const { data } = await db.from("agenda").select("*").order("day_number").order("sort_order");
     const tb = $("#agendaTable tbody");
     if (!tb) return;
@@ -1986,6 +2221,8 @@
     }, 200);
     ats?.addEventListener("input", filterAtt);
     atf?.addEventListener("change", filterAtt);
+
+    initTreasuryFilters();
   }
 
   // ==================== INIT ====================
@@ -2034,6 +2271,8 @@
 
     initFilters();
     if (typeof lucide !== "undefined") lucide.createIcons();
+
+    if (window.CONFIG) window.CONFIG.log("Admin Console v7.0 initialized with verified EmailJS credentials and Treasury Module.", "ADMIN");
   }
 
   if (document.readyState === "loading") {
