@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+<meta name="description" content="ALTITUDE - Rotaract District 3206 Trekking Event at Ooty. Rise Above. Trek Beyond. December 12-13, 2026." />
+<meta name="theme-color" content="#1B5E20" />
+<meta name="author" content="Team ALTITUDE - Rotaract District 3206" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="format-detection" content="telephone=no" />
+<meta property="og:title" content="ALTITUDE - Rotaract District Trekking Event" />
+<meta property="og:description" content="Two-day trekking adventure in Ooty by Rotaract RI District 3206. December 12-13, 2026." />
+<meta property="og:image" content="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<title>ALTITUDE | Rotaract District 3206 Trekking Event - Ooty</title>
+
+<link rel="icon" type="image/png" href="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" />
+<link rel="apple-touch-icon" href="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" />
+
+<link rel="dns-prefetch" href="//fonts.googleapis.com" />
+<link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
+<link rel="dns-prefetch" href="//unpkg.com" />
+<link rel="dns-prefetch" href="//res.cloudinary.com" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@400;600;700;800;900&family=Playfair+Display:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet" />
+
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<link rel="stylesheet" href="css/styles.css?v=14" />
+
+<noscript><style>#preloader{display:none!important}[data-aos]{opacity:1!important;transform:none!important}</style></noscript>
+</head>
+<body>
+<a href="#about" class="skip-link">Skip to main content</a>
+
+<!-- Preloader -->
+<div id="preloader">
+  <div class="preloader-content">
+    <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" alt="ALTITUDE" class="preloader-logo" loading="eager" />
+    <div class="preloader-bar"><div class="preloader-progress"></div></div>
+    <p>Preparing your ALTITUDE experience...</p>
+  </div>
+</div>
+
+<!-- Utility Buttons -->
+<button id="backToTop" class="back-to-top" aria-label="Scroll to top"><i data-lucide="chevron-up"></i></button>
+<a href="#register" id="floatingCta" class="floating-cta" aria-label="Register Now"><i data-lucide="user-plus"></i><span>Register Now</span></a>
+
+<!-- Announcement Bar -->
+<div id="announcementBar" class="announcement-bar" style="display:none;" role="status">
+  <div class="container">
+    <i data-lucide="megaphone"></i>
+    <span id="announcementText"></span>
+    <button type="button" class="close-announcement" aria-label="Close announcement"><i data-lucide="x"></i></button>
+  </div>
+</div>
+
+<!-- Navigation -->
+<nav class="navbar" id="navbar" role="navigation" aria-label="Main navigation">
+  <div class="container nav-container">
+    <a href="#home" class="nav-logo" aria-label="ALTITUDE Home">
+      <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Fly_beyond_limitsAsset_13_2x-8.png" alt="Fly Beyond Limits" class="nav-logo-primary" loading="eager" decoding="async" />
+      <div class="nav-logo-divider" aria-hidden="true"></div>
+      <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_WhiteAsset_2_2x-8.png" alt="ALTITUDE" class="nav-logo-main" id="navLogo" loading="eager" decoding="async" />
+    </a>
+    <ul class="nav-menu" id="navMenu">
+      <li><a href="#home" class="nav-link active">Home</a></li>
+      <li><a href="#about" class="nav-link">About</a></li>
+      <li><a href="#agenda" class="nav-link">Agenda</a></li>
+      <li><a href="#activities" class="nav-link">Activities</a></li>
+      <li><a href="#food" class="nav-link">Food</a></li>
+      <li><a href="#leaders" class="nav-link">Leaders</a></li>
+      <li><a href="#tracker" class="nav-link">Tracker</a></li>
+      <li><a href="#faq" class="nav-link">FAQ</a></li>
+      <li><a href="#register" class="nav-link btn-nav-cta">Register Now</a></li>
+      <li><a href="pass.html" class="nav-link btn-nav-pass"><i data-lucide="ticket"></i> My Pass</a></li>
+      <li><a href="verify.html" class="nav-link btn-nav-verifier"><i data-lucide="scan-line"></i> Verifier</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="navMenu"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<!-- Hero Section -->
+<section id="home" class="hero">
+  <canvas id="particleCanvas" aria-hidden="true"></canvas>
+  <div class="hero-bg-overlay parallax-layer" data-speed="0.3" aria-hidden="true"></div>
+  <div class="glow-ring" aria-hidden="true"></div>
+  <div class="float-element" aria-hidden="true"></div>
+  <div class="float-element" aria-hidden="true"></div>
+  <div class="float-element" aria-hidden="true"></div>
+  <div class="float-element" aria-hidden="true"></div>
+  <div class="float-element" aria-hidden="true"></div>
+
+  <div class="mountain-silhouette" aria-hidden="true">
+    <svg viewBox="0 0 1440 220" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 220L60 200C120 180 240 140 360 130C480 120 600 140 720 150C840 160 960 160 1080 145C1200 130 1320 100 1380 85L1440 70V220H0Z" fill="rgba(255,255,255,0.04)"/>
+      <path d="M0 220L80 190C160 160 320 100 480 90C640 80 800 120 960 135C1120 150 1280 140 1360 135L1440 130V220H0Z" fill="rgba(255,255,255,0.06)"/>
+      <path d="M0 220L120 200C240 180 480 140 720 145C960 150 1200 200 1320 210L1440 220V220H0Z" fill="rgba(0,0,0,0.15)"/>
+    </svg>
+  </div>
+
+  <div class="container hero-container" style="position:relative;z-index:3;">
+    <div class="hero-content" data-aos="fade-up" data-aos-duration="1000">
+      <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_WhiteAsset_2_2x-8.png" alt="ALTITUDE" class="hero-logo" loading="eager" />
+      <p class="hero-tagline" id="heroSubtitle">Rotaract District 3206 Trekking Event</p>
+      <h1 class="hero-title gradient-text">Rise Above. Trek Beyond.</h1>
+
+      <div class="hero-meta" data-aos="fade-up" data-aos-delay="200">
+        <div class="meta-item"><i data-lucide="calendar-days"></i><span id="heroDate">December 12-13, 2026</span></div>
+        <div class="meta-item"><i data-lucide="map-pin"></i><span id="heroLocation">Ooty, Tamil Nadu</span></div>
+        <div class="meta-item"><i data-lucide="mountain-snow"></i><span>Nilgiri Hills</span></div>
+        <div class="meta-item"><i data-lucide="shield-check"></i><span>RI District 3206</span></div>
+      </div>
+
+      <div class="hero-cta" data-aos="fade-up" data-aos-delay="400">
+        <a href="#register" class="btn btn-primary btn-large"><i data-lucide="user-plus"></i> Register Your Club</a>
+        <a href="#about" class="btn btn-outline btn-large"><i data-lucide="info"></i> Explore Event</a>
+        <a href="pass.html" class="btn btn-outline btn-large"><i data-lucide="ticket"></i> Download Pass</a>
+      </div>
+
+      <div class="countdown-showcase" data-aos="fade-up" data-aos-delay="600">
+        <div class="countdown-label"><i data-lucide="clock"></i><span>Live Countdown to Adventure</span></div>
+        <div class="countdown-wrapper" id="countdown" role="timer" aria-label="Countdown to event">
+          <div class="countdown-unit">
+            <div class="countdown-card">
+              <i data-lucide="calendar" class="countdown-unit-icon" aria-hidden="true"></i>
+              <span class="countdown-number" id="cd-days">00</span>
+              <span class="countdown-unit-label">Days</span>
+            </div>
+          </div>
+          <div class="countdown-separator" aria-hidden="true"><div class="dot"></div><div class="dot"></div></div>
+          <div class="countdown-unit">
+            <div class="countdown-card">
+              <i data-lucide="sun" class="countdown-unit-icon" aria-hidden="true"></i>
+              <span class="countdown-number" id="cd-hours">00</span>
+              <span class="countdown-unit-label">Hours</span>
+            </div>
+          </div>
+          <div class="countdown-separator" aria-hidden="true"><div class="dot"></div><div class="dot"></div></div>
+          <div class="countdown-unit">
+            <div class="countdown-card">
+              <i data-lucide="hourglass" class="countdown-unit-icon" aria-hidden="true"></i>
+              <span class="countdown-number" id="cd-mins">00</span>
+              <span class="countdown-unit-label">Minutes</span>
+            </div>
+          </div>
+          <div class="countdown-separator" aria-hidden="true"><div class="dot"></div><div class="dot"></div></div>
+          <div class="countdown-unit">
+            <div class="countdown-card">
+              <i data-lucide="zap" class="countdown-unit-icon" aria-hidden="true"></i>
+              <span class="countdown-number" id="cd-secs">00</span>
+              <span class="countdown-unit-label">Seconds</span>
+            </div>
+          </div>
+        </div>
+        <div class="countdown-caption"><i data-lucide="mountain-snow"></i><span>Until we conquer the Nilgiri peaks together</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-indicator" aria-hidden="true"><span></span></div>
+</section>
+
+<!-- About -->
+<section id="about" class="section section-white">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag"><i data-lucide="mountain-snow"></i> About the Event</span>
+      <h2 class="section-title" id="aboutTitle">About ALTITUDE</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="about-grid">
+      <div class="about-content" data-aos="fade-right">
+        <p id="aboutContent">ALTITUDE is the Rotaract District trekking event organized by Rotaract Clubs of Coimbatore Unity, Young Vibrants and TNAU (Tamil Nadu Agricultural University). Join fellow Rotaractors for an unforgettable adventure in the beautiful Nilgiri Hills of Ooty. Two days of trekking, team building, treasure hunts, colour challenges, and lasting memories await you.</p>
+        <div class="about-highlights" id="aboutHighlights"></div>
+      </div>
+      <div class="about-image" data-aos="fade-left">
+        <div class="about-logo-showcase">
+          <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" alt="ALTITUDE Logo" loading="lazy" />
+          <div class="image-badge"><i data-lucide="award"></i> Signature Event</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="features-grid" data-aos="fade-up">
+      <div class="feature-card"><div class="feature-icon-wrap"><i data-lucide="mountain"></i></div><h4>Adventure Trek</h4><p>Scenic routes through the Nilgiri Hills</p></div>
+      <div class="feature-card"><div class="feature-icon-wrap"><i data-lucide="users"></i></div><h4>Team Building</h4><p>Bond with Rotaractors from across the district</p></div>
+      <div class="feature-card"><div class="feature-icon-wrap"><i data-lucide="palette"></i></div><h4>Colour Hunt</h4><p>Viral social media challenge with prizes</p></div>
+      <div class="feature-card"><div class="feature-icon-wrap"><i data-lucide="map"></i></div><h4>Treasure Hunt</h4><p>Group-wise treasure hunt with exciting clues</p></div>
+      <div class="feature-card"><div class="feature-icon-wrap"><i data-lucide="mic-2"></i></div><h4>Star Performer Jamming</h4><p>Electrifying live music by star-studded performers</p></div>
+      <div class="feature-card"><div class="feature-icon-wrap"><i data-lucide="award"></i></div><h4>Certificates</h4><p>Official certificates and awards for all</p></div>
+    </div>
+
+    <div class="event-chair-card" data-aos="zoom-in">
+      <div class="chair-icon"><i data-lucide="user-round"></i></div>
+      <div class="chair-content">
+        <span class="chair-label" id="chairTitle">Event Chairperson</span>
+        <h3 class="chair-name" id="chairName">Rtr. PP. Muruganandam</h3>
+        <p class="chair-designation" id="chairDesignation">Event Chairperson - ALTITUDE</p>
+        <blockquote id="chairMessage">Dear fellow Rotaractors, it is with immense pride and excitement that I welcome you to ALTITUDE. This is not just a trek - it is a journey of fellowship, leadership, and adventure. Let us rise above challenges and trek beyond boundaries together. See you at the summit!</blockquote>
+      </div>
+    </div>
+
+    <div class="host-clubs" data-aos="fade-up">
+      <h3><i data-lucide="handshake"></i> Hosted By</h3>
+      <div class="host-clubs-list" id="hostClubsList">
+        <div class="host-club-badge">Rotaract Club of Coimbatore Unity</div>
+        <div class="host-club-badge">Rotaract Club of Young Vibrants</div>
+        <div class="host-club-badge">Rotaract Club of TNAU</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Event Overview -->
+<section class="section section-light">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag"><i data-lucide="calendar-check"></i> Event Overview</span>
+      <h2 class="section-title">Two Days of Adventure</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="event-timeline-overview">
+      <div class="timeline-day-card" data-aos="fade-right">
+        <span class="day-badge">Day One</span>
+        <div class="day-date">December 12, 2026</div>
+        <h3>Arrival &amp; Adventure</h3>
+        <ul class="day-highlights">
+          <li><i data-lucide="check"></i> Assembly &amp; Registration</li>
+          <li><i data-lucide="check"></i> Inauguration Ceremony</li>
+          <li><i data-lucide="check"></i> Trek Phase 1 with Groups</li>
+          <li><i data-lucide="check"></i> Colour Hunt Challenge</li>
+          <li><i data-lucide="check"></i> Treasure Hunt Activity</li>
+          <li><i data-lucide="check"></i> Campfire &amp; Fellowship</li>
+          <li><i data-lucide="check"></i> Star Performer Jamming</li>
+        </ul>
+      </div>
+      <div class="timeline-day-card" data-aos="fade-left">
+        <span class="day-badge">Day Two</span>
+        <div class="day-date">December 13, 2026</div>
+        <h3>Summit &amp; Farewell</h3>
+        <ul class="day-highlights">
+          <li><i data-lucide="check"></i> Sunrise Trek to Summit</li>
+          <li><i data-lucide="check"></i> Mountain Breakfast</li>
+          <li><i data-lucide="check"></i> Team Building Activities</li>
+          <li><i data-lucide="check"></i> Group Photography</li>
+          <li><i data-lucide="check"></i> Closing Ceremony &amp; Awards</li>
+          <li><i data-lucide="check"></i> Certificate Distribution</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Registration -->
+<section id="register" class="section section-green">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag light"><i data-lucide="clipboard-list"></i> Registration</span>
+      <h2 class="section-title white">Register For ALTITUDE</h2>
+      <div class="section-divider light"></div>
+      <p class="section-subtitle white">Fee: <strong>₹3,000 per person</strong> | Only President or Secretary can register</p>
+    </div>
+    <div class="reg-tabs" data-aos="fade-up">
+      <button class="reg-tab active" data-tab="club"><i data-lucide="users-round"></i> Club Registration</button>
+      <button class="reg-tab" data-tab="dc"><i data-lucide="crown"></i> District Council</button>
+    </div>
+
+    <!-- CLUB REGISTRATION -->
+    <div class="reg-form-container active" id="tab-club" data-aos="fade-up">
+      <form id="clubRegForm" class="reg-form" novalidate>
+        <div class="form-section">
+          <h3 class="form-section-title"><i data-lucide="user-cog"></i> Registrant Details</h3>
+          <div class="form-grid">
+            <div class="form-group"><label for="club-registrant_role">Registering As <span class="req">*</span></label><select id="club-registrant_role" name="registrant_role" required><option value="">Select Role</option><option value="President">President</option><option value="Secretary">Secretary</option></select></div>
+            <div class="form-group"><label for="clubSelect">Your Club <span class="req">*</span></label><select name="club_id" id="clubSelect" required><option value="">Select Club</option></select><small id="slotsInfo" class="slots-info" style="display:none;"></small><div id="capacityWarning"></div></div>
+            <div class="form-group"><label for="groupDisplay">Group Number</label><input type="text" id="groupDisplay" readonly placeholder="Auto-filled" tabindex="-1" /></div>
+            <div class="form-group"><label for="club-registrant_name">Your Full Name <span class="req">*</span></label><input id="club-registrant_name" type="text" autocomplete="name" name="registrant_name" required placeholder="Enter your full name" maxlength="100" /></div>
+            <div class="form-group"><label for="club-registrant_ri_id">Your RI ID <span class="req">*</span></label><input id="club-registrant_ri_id" type="text" name="registrant_ri_id" required placeholder="Rotary International ID" maxlength="20" /></div>
+            <div class="form-group"><label for="club-registrant_email">Your Email <span class="req">*</span></label><input id="club-registrant_email" type="email" inputmode="email" autocomplete="email" name="registrant_email" required placeholder="email@example.com" maxlength="100" /></div>
+            <div class="form-group"><label for="club-registrant_phone">Your Contact Number <span class="req">*</span></label><input id="club-registrant_phone" type="tel" inputmode="numeric" autocomplete="tel-national" name="registrant_phone" pattern="[0-9]{10}" maxlength="10" required placeholder="10-digit mobile" /></div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-flex">
+            <h3 class="form-section-title"><i data-lucide="users"></i> Member Entries</h3>
+            <button type="button" class="btn btn-secondary" id="addMemberBtn"><i data-lucide="plus-circle"></i> Add Member</button>
+          </div>
+          <p class="form-note" role="note">Add each member individually. Fee: ₹3,000 per person.</p>
+          <div id="membersContainer" role="list" aria-label="Member entries"></div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="form-section-title"><i data-lucide="credit-card"></i> Payment Details</h3>
+          <div class="payment-info">
+            <div class="payment-total">
+              <span>Total Members<strong id="totalMembers">0</strong></span>
+              <span>Total Amount<strong>₹<span id="totalAmount">0</span></strong></span>
+            </div>
+            <div class="bank-details">
+              <h4><i data-lucide="banknote"></i> Bank Account Details</h4>
+              <div class="bank-row"><span>Account Name</span><strong>ROTARACT CLUB OF COIMBATORE UPTOWN</strong></div>
+              <div class="bank-row"><span>Account Number</span><strong>262001674983</strong></div>
+              <div class="bank-row"><span>IFSC Code</span><strong>SURY0000022</strong></div>
+              <div class="bank-row"><span>Bank Name</span><strong>Suryoday Small Finance Bank</strong></div>
+              <div class="bank-row"><span>Branch</span><strong>Pulliyakulam</strong></div>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label for="club-transaction_id">Transaction ID <span class="req">*</span></label><input id="club-transaction_id" type="text" name="transaction_id" required placeholder="Payment reference number" maxlength="50" /></div>
+            <div class="form-group"><label for="paymentScreenshot">Payment Screenshot <span class="req">*</span></label><input type="file" name="payment_screenshot" id="paymentScreenshot" accept="image/*,application/pdf" required /><small>JPG, PNG, PDF - max 10MB</small><div id="clubScreenshotPreview"></div></div>
+          </div>
+        </div>
+
+        <div class="form-terms"><label><input type="checkbox" required /> I have read and agree to the <a href="#terms">Terms &amp; Conditions</a></label></div>
+        <button type="submit" class="btn btn-primary btn-large btn-block" id="submitClubReg"><i data-lucide="send"></i> Submit Registration</button>
+      </form>
+    </div>
+
+    <!-- DISTRICT COUNCIL REGISTRATION -->
+    <div class="reg-form-container" id="tab-dc">
+      <form id="dcRegForm" class="reg-form" novalidate>
+        <div class="form-section">
+          <h3 class="form-section-title"><i data-lucide="crown"></i> District Council Details</h3>
+          <div class="form-grid">
+            <div class="form-group"><label for="dc-full_name">Full Name <span class="req">*</span></label><input id="dc-full_name" type="text" autocomplete="name" name="full_name" required maxlength="100" placeholder="Enter your full name" /></div>
+            <div class="form-group"><label for="dc-ri_id">RI ID <span class="req">*</span></label><input id="dc-ri_id" type="text" name="ri_id" required maxlength="20" placeholder="Rotary International ID" /></div>
+            <div class="form-group"><label for="dc-portfolio">Portfolio <span class="req">*</span></label><input id="dc-portfolio" type="text" name="portfolio" required maxlength="100" placeholder="Your DC designation" /></div>
+            <div class="form-group"><label for="dc-club_name">Home Club</label><input id="dc-club_name" type="text" name="club_name" maxlength="100" placeholder="Your home club" /></div>
+            <div class="form-group"><label for="dc-email">Email <span class="req">*</span></label><input id="dc-email" type="email" inputmode="email" autocomplete="email" name="email" required maxlength="100" placeholder="email@example.com" /></div>
+            <div class="form-group"><label for="dc-contact_number">Contact Number <span class="req">*</span></label><input id="dc-contact_number" type="tel" inputmode="numeric" autocomplete="tel-national" name="contact_number" pattern="[0-9]{10}" maxlength="10" required placeholder="10-digit mobile" /></div>
+            <div class="form-group"><label for="dc-food_preference">Food Preference <span class="req">*</span></label><select id="dc-food_preference" name="food_preference" required><option value="">Select</option><option value="VEG">Vegetarian</option><option value="NON-VEG">Non-Vegetarian</option></select></div>
+            <div class="form-group full-width"><label for="dc-expectations">Expectations from ALTITUDE</label><textarea id="dc-expectations" name="expectations" rows="3" maxlength="500" placeholder="Share your goals and expectations"></textarea></div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="form-section-title"><i data-lucide="credit-card"></i> Payment Details</h3>
+          <div class="payment-info">
+            <div class="payment-total single">
+              <span>Registration Fee<strong>₹3,000</strong></span>
+            </div>
+            <div class="bank-details">
+              <h4><i data-lucide="banknote"></i> Bank Account Details</h4>
+              <div class="bank-row"><span>Account Name</span><strong>ROTARACT CLUB OF COIMBATORE UPTOWN</strong></div>
+              <div class="bank-row"><span>Account Number</span><strong>262001674983</strong></div>
+              <div class="bank-row"><span>IFSC Code</span><strong>SURY0000022</strong></div>
+              <div class="bank-row"><span>Bank Name</span><strong>Suryoday Small Finance Bank</strong></div>
+              <div class="bank-row"><span>Branch</span><strong>Pulliyakulam</strong></div>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label for="dc-transaction_id">Transaction ID <span class="req">*</span></label><input id="dc-transaction_id" type="text" name="transaction_id" required maxlength="50" placeholder="Payment reference number" /></div>
+            <div class="form-group"><label for="dc-payment_screenshot">Payment Screenshot <span class="req">*</span></label><input id="dc-payment_screenshot" type="file" name="payment_screenshot" accept="image/*,application/pdf" required /><small>JPG, PNG, PDF - max 10MB</small><div id="dcScreenshotPreview"></div></div>
+          </div>
+        </div>
+
+        <div class="form-terms"><label><input type="checkbox" required /> I have read and agree to the <a href="#terms">Terms &amp; Conditions</a></label></div>
+        <button type="submit" class="btn btn-primary btn-large btn-block" id="submitDcReg"><i data-lucide="send"></i> Submit Registration</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Agenda -->
+<section id="agenda" class="section section-white">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag"><i data-lucide="calendar-clock"></i> Schedule</span>
+      <h2 class="section-title">Detailed Agenda</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="agenda-tabs">
+      <button class="agenda-tab active" data-day="1"><i data-lucide="sun"></i> Day 1 - Dec 12</button>
+      <button class="agenda-tab" data-day="2"><i data-lucide="sunrise"></i> Day 2 - Dec 13</button>
+    </div>
+    <div class="agenda-timeline" id="agendaDay1"></div>
+    <div class="agenda-timeline" id="agendaDay2" style="display:none;"></div>
+  </div>
+</section>
+
+<!-- Activities -->
+<section id="activities" class="section section-light">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag"><i data-lucide="sparkles"></i> Activities</span>
+      <h2 class="section-title">Special Challenges</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="activities-grid">
+      <div class="activity-card colour-hunt-card" data-aos="fade-up">
+        <div class="activity-icon"><i data-lucide="palette"></i></div>
+        <h3 id="colourHuntTitle">Colour Hunt Challenge</h3>
+        <p id="colourHuntDesc">Walk around Ooty, find objects matching your colour, capture photos and win!</p>
+        <div class="activity-details" id="colourHuntDetails"></div>
+        <div class="activity-hashtags" id="colourHuntTags"></div>
+      </div>
+      <div class="activity-card treasure-card" data-aos="fade-up" data-aos-delay="150">
+        <div class="activity-icon"><i data-lucide="map"></i></div>
+        <h3>Treasure Hunt</h3>
+        <p>Group-wise treasure hunt with exciting clues!</p>
+        <div id="treasureCluesContainer" class="treasure-clues"><p class="clue-placeholder"><i data-lucide="lock"></i> Clues revealed during event</p></div>
+      </div>
+    </div>
+    <div class="section-header" data-aos="fade-up" style="margin-top:var(--space-4xl);">
+      <span class="section-tag"><i data-lucide="camera"></i> Coming Soon</span>
+      <h2 class="section-title">Event Gallery</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="gallery-preview-grid" data-aos="fade-up">
+      <div class="gallery-item"><i data-lucide="camera"></i></div>
+      <div class="gallery-item"><i data-lucide="image"></i></div>
+      <div class="gallery-item"><i data-lucide="video"></i></div>
+      <div class="gallery-item"><i data-lucide="mountain-snow"></i></div>
+    </div>
+  </div>
+</section>
+
+<!-- Food -->
+<section id="food" class="section section-white">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag"><i data-lucide="utensils"></i> Menu</span>
+      <h2 class="section-title">Catering Menu</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="food-tabs">
+      <button class="food-tab active" data-fday="1">Day 1</button>
+      <button class="food-tab" data-fday="2">Day 2</button>
+    </div>
+    <div class="food-menu-container" id="foodMenuDay1"></div>
+    <div class="food-menu-container" id="foodMenuDay2" style="display:none;"></div>
+  </div>
+</section>
+
+<!-- Leaders -->
+<section id="leaders" class="section section-light">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag"><i data-lucide="user-round-cog"></i> Team</span>
+      <h2 class="section-title">Group Leaders</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="leaders-grid" id="leadersGrid"><div class="leader-placeholder">Group leader information coming soon.</div></div>
+  </div>
+</section>
+
+<!-- Tracker -->
+<section id="tracker" class="section section-green">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag light"><i data-lucide="search"></i> Track Status</span>
+      <h2 class="section-title white">Track Your Registration</h2>
+      <div class="section-divider light"></div>
+    </div>
+    <div class="tracker-search-card" data-aos="fade-up">
+      <form id="trackerForm" class="tracker-form">
+        <div class="tracker-input-group">
+          <div class="tracker-input-wrapper"><i data-lucide="badge"></i><input type="text" id="trackerRiId" placeholder="Enter your RI ID" aria-label="Your RI ID" required autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" /></div>
+          <button type="submit" class="btn btn-primary btn-large" id="trackerSearchBtn"><i data-lucide="search"></i> Track</button>
+        </div>
+      </form>
+    </div>
+    <div id="trackerResult" class="tracker-result" style="display:none;"></div>
+    <div id="trackerNotFound" class="tracker-not-found" style="display:none;">
+      <div class="tracker-not-found-icon"><i data-lucide="search-x"></i></div>
+      <h3>No Registration Found</h3>
+      <p>Verify your ID or register first.</p>
+      <a href="#register" class="btn btn-outline"><i data-lucide="user-plus"></i> Register Now</a>
+    </div>
+    <div class="tracker-process" data-aos="fade-up" style="margin-top:var(--space-3xl);">
+      <h3 class="white-text">Registration Process</h3>
+      <div class="process-steps">
+        <div class="step-item"><div class="step-num">1</div><h4>Fill Form</h4><p>President/Secretary fills form</p></div>
+        <div class="step-item"><div class="step-num">2</div><h4>Pay ₹3,000</h4><p>Transfer per member</p></div>
+        <div class="step-item"><div class="step-num">3</div><h4>Verification</h4><p>Team ALTITUDE verifies</p></div>
+        <div class="step-item"><div class="step-num">4</div><h4>Approval</h4><p>Email sent</p></div>
+        <div class="step-item"><div class="step-num">5</div><h4>Get Pass</h4><p>Download with OTP</p></div>
+        <div class="step-item"><div class="step-num">6</div><h4>Check-in</h4><p>Scan QR at venue</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" class="section section-white">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag"><i data-lucide="help-circle"></i> Help</span>
+      <h2 class="section-title">Frequently Asked Questions</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="faq-container" id="faqContainer"></div>
+  </div>
+</section>
+
+<!-- Terms -->
+<section id="terms" class="section section-light">
+  <div class="container">
+    <div class="section-header" data-aos="fade-up">
+      <span class="section-tag"><i data-lucide="scroll-text"></i> Legal</span>
+      <h2 class="section-title">Terms &amp; Conditions</h2>
+      <div class="section-divider"></div>
+    </div>
+    <div class="terms-container" data-aos="fade-up"><ol id="termsList"></ol></div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <div class="footer-dual-logos">
+          <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Fly_beyond_limitsAsset_13_2x-8.png" alt="Fly Beyond Limits" loading="lazy" />
+          <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_WhiteAsset_2_2x-8.png" alt="ALTITUDE" loading="lazy" />
+        </div>
+        <p>ALTITUDE - The signature trekking event of Rotaract RI District 3206. Rise above. Trek beyond.</p>
+        <div class="social-links">
+          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="Instagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg></a>
+          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="Facebook"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+          <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="LinkedIn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg></a>
+          <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="YouTube"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg></a>
+          <a href="mailto:altitude3206@gmail.com" class="social-icon" aria-label="Email"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="#about">About</a></li>
+          <li><a href="#register">Register</a></li>
+          <li><a href="#agenda">Agenda</a></li>
+          <li><a href="#tracker">Track Status</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="pass.html">Download Pass</a></li>
+          <li><a href="verify.html">Verifier Portal</a></li>
+          <li><a href="#terms">Terms</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Event Information</h4>
+        <ul>
+          <li><i data-lucide="calendar"></i> December 12-13, 2026</li>
+          <li><i data-lucide="map-pin"></i> Ooty, Tamil Nadu</li>
+          <li><i data-lucide="tag"></i> ₹3,000 per person</li>
+          <li><i data-lucide="users"></i> RI District 3206</li>
+          <li><i data-lucide="mountain-snow"></i> Nilgiri Hills</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><i data-lucide="mail"></i> altitude3206@gmail.com</li>
+          <li><i data-lucide="user-round"></i> Rtr. PP. Muruganandam</li>
+          <li>Event Chairperson</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 Team ALTITUDE - Rotaract RI District 3206 - All rights reserved.</p>
+      <p><a href="admin.html" class="admin-link"><i data-lucide="shield"></i> Admin Portal</a></p>
+    </div>
+  </div>
+</footer>
+
+<!-- Toast -->
+<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"><i data-lucide="check-circle" class="toast-icon"></i><span id="toastMessage"></span></div>
+
+<!-- Success Modal -->
+<div id="successModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="successModalTitle">
+  <div class="modal-content">
+    <div class="modal-success-icon"><i data-lucide="check-circle-2"></i></div>
+    <h2 id="successModalTitle">Registration Submitted!</h2>
+    <p>Your Registration ID is:</p>
+    <div class="registration-id-display" id="regIdDisplay"></div>
+    <p class="modal-note">Team ALTITUDE will verify and approve your registration.</p>
+    <button type="button" class="btn btn-primary" id="successModalClose">Continue</button>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" role="status" aria-live="polite" aria-label="Loading"><div class="loading-spinner"></div><p id="loadingText">Processing...</p></div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js?v=14"></script>
+<script src="js/registration.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialize AOS Animations
+  if (window.AOS) AOS.init({ duration: 700, easing: 'ease-out', once: true, offset: 50 });
+  else document.documentElement.classList.add('no-aos');
+  if (window.lucide) lucide.createIcons();
+
+  // Preloader: hide once the page has loaded (3s max so it can never get stuck)
+  const hidePreloader = () => {
+    const p = document.getElementById('preloader');
+    if (!p || p.dataset.done) return;
+    p.dataset.done = '1';
+    p.style.transition = 'opacity 0.5s';
+    p.style.opacity = '0';
+    p.setAttribute('aria-hidden', 'true');
+    setTimeout(() => { p.style.display = 'none'; }, 500);
+  };
+  if (document.readyState === 'complete') setTimeout(hidePreloader, 400);
+  else window.addEventListener('load', () => setTimeout(hidePreloader, 400));
+  setTimeout(hidePreloader, 3000);
+
+  // Particle Canvas (Desktop & Tablet only)
+  const canvas = document.getElementById('particleCanvas');
+  if (canvas && window.innerWidth > 480 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let heroVisible = true;
+    if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => { heroVisible = en.isIntersecting; }).observe(canvas);
+    function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+    class Particle {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.s = Math.random() * 2 + 0.5;
+        this.dx = (Math.random() - 0.5) * 0.4;
+        this.dy = (Math.random() - 0.5) * 0.4;
+        this.o = Math.random() * 0.25 + 0.05;
+      }
+      update() {
+        this.x += this.dx;
+        this.y += this.dy;
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+      }
+      draw() {
+        ctx.fillStyle = 'rgba(255,255,255,' + this.o + ')';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    const count = Math.min(60, Math.floor((canvas.width * canvas.height) / 18000));
+    for (let i = 0; i < count; i++) particles.push(new Particle());
+    function animate() {
+      if (document.hidden || !heroVisible) { requestAnimationFrame(animate); return; }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animate);
+    }
+    animate();
+  }
+
+  // Back to Top & Floating CTA (Throttled)
+  const btt = document.getElementById('backToTop');
+  const fcta = document.getElementById('floatingCta');
+  let scrollThrottle = false;
+  window.addEventListener('scroll', () => {
+    if (scrollThrottle) return;
+    scrollThrottle = true;
+    requestAnimationFrame(() => {
+      const s = window.scrollY > 500;
+      if (btt) btt.classList.toggle('visible', s);
+      if (fcta) fcta.classList.toggle('visible', s && window.scrollY < document.body.scrollHeight - 1500);
+      scrollThrottle = false;
+    });
+  }, { passive: true });
+  if (btt) btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  // Hero Parallax (Desktop only, respects reduced motion)
+  const hero = document.querySelector('.hero');
+  if (hero && window.innerWidth > 768 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    hero.addEventListener('mousemove', (e) => {
+      const r = hero.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      hero.querySelectorAll('.parallax-layer').forEach(l => {
+        const s = parseFloat(l.dataset.speed) || 0.3;
+        l.style.transform = 'translate(' + x * 25 * s + 'px, ' + y * 15 * s + 'px)';
+      });
+    });
+  }
+
+  console.log('[ALTITUDE Portal] v14.0 Futuristic Edition loaded');
+});
+</script>
+</body>
+</html>

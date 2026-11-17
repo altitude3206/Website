@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0D3B12" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Admin Console | ALTITUDE</title>
+<link rel="icon" type="image/png" href="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<script defer src="https://unpkg.com/lucide@1.51.0/dist/umd/lucide.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<!-- SheetJS (~1 MB) is now lazy-loaded by admin.js the first time an export is used -->
+
+<link rel="stylesheet" href="css/styles.css" />
+<link rel="stylesheet" href="css/admin.css" />
+
+</head>
+<body class="admin-body">
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-header">
+      <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_ColourAsset_1_2x-8.png" alt="Altitude" class="login-logo" />
+      <h1>Admin Console</h1>
+      <p>ALTITUDE · Rotaract District 3206</p>
+    </div>
+    <form id="loginForm" class="login-form">
+      <div class="form-group">
+        <label for="loginEmail"><i data-lucide="mail"></i> Email</label>
+        <input type="email" id="loginEmail" required autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="admin@example.com" />
+      </div>
+      <div class="form-group">
+        <label for="loginPassword"><i data-lucide="lock"></i> Password</label>
+        <div class="password-field">
+          <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••" />
+          <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="Show or hide password"><i data-lucide="eye" id="pwToggleIcon"></i></button>
+        </div>
+      </div>
+      <div id="loginError" class="login-error" role="alert" style="display:none;"></div>
+      <button type="submit" id="loginBtn">
+        <i data-lucide="log-in"></i> Sign In Securely
+      </button>
+    </form>
+    <a href="index.html" class="back-to-site"><i data-lucide="arrow-left"></i> Back to Website</a>
+  </div>
+</div>
+
+<!-- SIDEBAR OVERLAY (Mobile) -->
+<div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ADMIN APP -->
+<div id="adminApp" class="admin-app" style="display:none;">
+
+  <!-- SIDEBAR -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-header">
+      <img src="https://res.cloudinary.com/lczeyj8q/image/upload/f_auto/q_auto/Altitude_WhiteAsset_2_2x-8.png" alt="Altitude" />
+      <button class="sidebar-close" id="sidebarClose" onclick="closeSidebar()" aria-label="Close menu"><i data-lucide="x"></i></button>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="sidebar-link active" data-view="dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+      <a href="#" class="sidebar-link" data-view="clubReg"><i data-lucide="users-round"></i><span>Club Registrations</span></a>
+      <a href="#" class="sidebar-link" data-view="dcReg"><i data-lucide="crown"></i><span>District Council</span></a>
+      <a href="#" class="sidebar-link" data-view="members"><i data-lucide="user-check"></i><span>All Members</span></a>
+      <a href="#" class="sidebar-link" data-view="clubs"><i data-lucide="building-2"></i><span>Clubs Management</span></a>
+      <a href="#" class="sidebar-link" data-view="attendance"><i data-lucide="clipboard-check"></i><span>Attendance</span></a>
+      <a href="#" class="sidebar-link" data-view="scanner"><i data-lucide="scan-line"></i><span>QR Scanner</span></a>
+
+      <div class="sidebar-divider">Finance</div>
+      <a href="#" class="sidebar-link" data-view="treasury"><i data-lucide="indian-rupee"></i><span>Treasury & Accounts</span></a>
+
+      <div class="sidebar-divider">Content Management</div>
+      <a href="#" class="sidebar-link" data-view="siteContent"><i data-lucide="file-text"></i><span>Site Content</span></a>
+      <a href="#" class="sidebar-link" data-view="agenda"><i data-lucide="calendar-clock"></i><span>Agenda</span></a>
+      <a href="#" class="sidebar-link" data-view="colourHunt"><i data-lucide="palette"></i><span>Colour Hunt</span></a>
+      <a href="#" class="sidebar-link" data-view="treasure"><i data-lucide="map"></i><span>Treasure Hunt</span></a>
+      <a href="#" class="sidebar-link" data-view="leaders"><i data-lucide="user-round-cog"></i><span>Group Leaders</span></a>
+      <a href="#" class="sidebar-link" data-view="food"><i data-lucide="utensils"></i><span>Food Menu</span></a>
+      <a href="#" class="sidebar-link" data-view="announcements"><i data-lucide="megaphone"></i><span>Announcements</span></a>
+      <a href="#" class="sidebar-link" data-view="faqs"><i data-lucide="help-circle"></i><span>FAQs</span></a>
+
+      <div class="sidebar-divider">System</div>
+      <a href="#" class="sidebar-link" data-view="admins"><i data-lucide="shield-check"></i><span>Admin Users</span></a>
+      <a href="#" class="sidebar-link" data-view="activity"><i data-lucide="activity"></i><span>Activity Log</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <div class="admin-avatar"><i data-lucide="user"></i></div>
+        <div>
+          <div class="admin-name" id="adminName">Admin</div>
+          <div class="admin-role" id="adminRole">Super Admin</div>
+        </div>
+      </div>
+      <button class="btn-logout" id="logoutBtn" title="Sign Out" aria-label="Logout"><i data-lucide="log-out"></i></button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="admin-main">
+    <header class="admin-topbar">
+      <button class="menu-toggle" id="menuToggle" onclick="openSidebar()" aria-label="Open menu"><i data-lucide="menu"></i></button>
+      <h2 id="viewTitle">Dashboard</h2>
+      <div class="topbar-actions">
+        <button class="btn-icon" title="Refresh" onclick="location.reload()" aria-label="Refresh"><i data-lucide="refresh-cw"></i></button>
+        <a href="index.html" class="btn-icon" title="View Website" target="_blank" aria-label="View Site"><i data-lucide="external-link"></i></a>
+        <a href="verify.html" class="btn-icon" title="Verifier" target="_blank" aria-label="Verifier"><i data-lucide="scan-line"></i></a>
+      </div>
+    </header>
+
+    <div class="admin-content">
+
+      <!-- DASHBOARD -->
+      <section class="view active" id="view-dashboard">
+        <div class="stats-grid">
+          <div class="stat-box green"><i data-lucide="user-check"></i><div><span class="num" id="dashApproved">0</span><span class="lbl">Approved</span></div></div>
+          <div class="stat-box yellow"><i data-lucide="clock"></i><div><span class="num" id="dashPending">0</span><span class="lbl">Pending</span></div></div>
+          <div class="stat-box red"><i data-lucide="x-circle"></i><div><span class="num" id="dashRejected">0</span><span class="lbl">Rejected</span></div></div>
+          <div class="stat-box blue"><i data-lucide="clipboard-check"></i><div><span class="num" id="dashAttended">0</span><span class="lbl">Attended</span></div></div>
+          <div class="stat-box purple"><i data-lucide="crown"></i><div><span class="num" id="dashDcApproved">0</span><span class="lbl">DC Approved</span></div></div>
+          <div class="stat-box teal"><i data-lucide="building-2"></i><div><span class="num" id="dashClubs">0</span><span class="lbl">Clubs Joined</span></div></div>
+          <div class="stat-box orange"><i data-lucide="leaf"></i><div><span class="num" id="dashVeg">0</span><span class="lbl">Veg Meals</span></div></div>
+          <div class="stat-box brown"><i data-lucide="drumstick"></i><div><span class="num" id="dashNonVeg">0</span><span class="lbl">Non-Veg</span></div></div>
+          <div class="stat-box gold"><i data-lucide="award"></i><div><span class="num" id="dashBoard">0</span><span class="lbl">Board Members</span></div></div>
+          <div class="stat-box green-dark"><i data-lucide="indian-rupee"></i><div><span class="num" id="dashRevenue">₹0</span><span class="lbl">Total Revenue</span></div></div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dash-card">
+            <h3><i data-lucide="pie-chart"></i> Groups</h3>
+            <div id="groupDistribution" class="group-dist"></div>
+          </div>
+          <div class="dash-card">
+            <h3><i data-lucide="activity"></i> Recent Activity</h3>
+            <div id="recentActivity" class="recent-activity"></div>
+          </div>
+        </div>
+
+        <div class="dash-card">
+          <h3><i data-lucide="trending-up"></i> Top Registered Clubs</h3>
+          <div id="topClubsList" class="top-clubs"></div>
+        </div>
+      </section>
+
+      <!-- CLUB REGISTRATIONS -->
+      <section class="view" id="view-clubReg">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="clubRegSearch" placeholder="Search..." aria-label="Search..." class="search-input" />
+            <select id="clubRegStatusFilter" class="filter-select" aria-label="All Status">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button class="btn btn-primary" id="exportClubReg"><i data-lucide="download"></i> Export</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="clubRegTable">
+            <thead><tr><th>ID</th><th>Club</th><th>Registrant</th><th>Role</th><th>Members</th><th>Amount</th><th>Txn</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- DC REGISTRATIONS -->
+      <section class="view" id="view-dcReg">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="dcRegSearch" placeholder="Search..." aria-label="Search..." class="search-input" />
+            <select id="dcRegStatusFilter" class="filter-select" aria-label="All Status">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button class="btn btn-primary" id="exportDcReg"><i data-lucide="download"></i> Export</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="dcRegTable">
+            <thead><tr><th>ID</th><th>Name</th><th>RI ID</th><th>Portfolio</th><th>Contact</th><th>Food</th><th>Txn</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MEMBERS -->
+      <section class="view" id="view-members">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="membersSearch" placeholder="Search..." aria-label="Search..." class="search-input" />
+            <select id="membersStatusFilter" class="filter-select" aria-label="All Status">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select id="membersFoodFilter" class="filter-select" aria-label="All Food">
+              <option value="">All Food</option>
+              <option value="VEG">Veg</option>
+              <option value="NON-VEG">Non-Veg</option>
+            </select>
+            <select id="membersGroupFilter" class="filter-select" aria-label="All Groups">
+              <option value="">All Groups</option>
+              <option value="1">Group 1</option>
+              <option value="2">Group 2</option>
+              <option value="3">Group 3</option>
+              <option value="4">Group 4</option>
+            </select>
+            <button class="btn btn-primary" id="exportMembers"><i data-lucide="download"></i> Export</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="membersTable">
+            <thead><tr><th>Code</th><th>Name</th><th>RI ID</th><th>Club</th><th>Group</th><th>Food</th><th>Board</th><th>Status</th><th>Attended</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- CLUBS -->
+      <section class="view" id="view-clubs">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="clubsSearch" placeholder="Search clubs..." aria-label="Search clubs..." class="search-input" />
+            <select id="clubsGroupFilter" class="filter-select" aria-label="All Groups">
+              <option value="">All Groups</option>
+              <option value="1">Group 1</option>
+              <option value="2">Group 2</option>
+              <option value="3">Group 3</option>
+              <option value="4">Group 4</option>
+            </select>
+            <button class="btn btn-primary" id="bulkUpdateLimit"><i data-lucide="edit-3"></i> Bulk</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="clubsTable">
+            <thead><tr><th>Club Name</th><th>Group</th><th>Max</th><th>Current</th><th>Available</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ATTENDANCE -->
+      <section class="view" id="view-attendance">
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="attSearch" placeholder="Search..." aria-label="Search..." class="search-input" />
+            <select id="attFilter" class="filter-select" aria-label="All">
+              <option value="">All</option>
+              <option value="attended">Attended</option>
+              <option value="not-attended">Not Attended</option>
+            </select>
+            <button class="btn btn-primary" id="exportAttendance"><i data-lucide="download"></i> Export</button>
+          </div>
+        </div>
+        <div class="att-summary" id="attSummary"></div>
+        <div class="table-container">
+          <table class="admin-table" id="attendanceTable">
+            <thead><tr><th>Code</th><th>Name</th><th>RI ID</th><th>Club</th><th>Type</th><th>Status</th><th>Checked At</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SCANNER -->
+      <section class="view" id="view-scanner">
+        <div class="scanner-container">
+          <div class="scanner-box">
+            <h3><i data-lucide="scan-line"></i> QR Scanner</h3>
+            <p>Scan participant QR codes to mark attendance</p>
+            <div id="qrReader" style="width: 100%; max-width: 500px; margin: 16px auto;"></div>
+            <div class="scanner-controls">
+              <button class="btn btn-primary" id="startScanBtn"><i data-lucide="camera"></i> Start</button>
+              <button class="btn btn-secondary" id="stopScanBtn" style="display:none;"><i data-lucide="stop-circle"></i> Stop</button>
+            </div>
+          </div>
+          <div class="scan-result" id="scanResult"></div>
+        </div>
+      </section>
+
+      <!-- TREASURY -->
+      <section class="view" id="view-treasury">
+        <div class="treasury-dashboard">
+          <div class="treasury-stat-grid">
+            <div class="treasury-stat income">
+              <div class="treasury-stat-icon"><i data-lucide="trending-up"></i></div>
+              <div><span class="treasury-stat-num" id="trsIncome">₹0</span><span class="treasury-stat-lbl">Total Income</span></div>
+            </div>
+            <div class="treasury-stat expense">
+              <div class="treasury-stat-icon"><i data-lucide="trending-down"></i></div>
+              <div><span class="treasury-stat-num" id="trsExpense">₹0</span><span class="treasury-stat-lbl">Total Expense</span></div>
+            </div>
+            <div class="treasury-stat balance">
+              <div class="treasury-stat-icon"><i data-lucide="wallet"></i></div>
+              <div><span class="treasury-stat-num" id="trsBalance">₹0</span><span class="treasury-stat-lbl">Net Balance</span></div>
+            </div>
+            <div class="treasury-stat gst">
+              <div class="treasury-stat-icon"><i data-lucide="receipt"></i></div>
+              <div><span class="treasury-stat-num" id="trsGst">₹0</span><span class="treasury-stat-lbl">GST</span></div>
+            </div>
+            <div class="treasury-stat tds">
+              <div class="treasury-stat-icon"><i data-lucide="landmark"></i></div>
+              <div><span class="treasury-stat-num" id="trsTds">₹0</span><span class="treasury-stat-lbl">TDS</span></div>
+            </div>
+            <div class="treasury-stat reg">
+              <div class="treasury-stat-icon"><i data-lucide="users"></i></div>
+              <div><span class="treasury-stat-num" id="trsRegRev">₹0</span><span class="treasury-stat-lbl">Registration</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-header">
+          <div class="filters">
+            <input type="text" id="trsSearch" placeholder="Search transactions..." aria-label="Search transactions..." class="search-input" />
+            <select id="trsCategoryFilter" class="filter-select" aria-label="All Categories">
+              <option value="">All Categories</option>
+              <option value="INCOME">Income</option>
+              <option value="EXPENSE">Expense</option>
+              <option value="ADJUSTMENT">Adjustment</option>
+            </select>
+            <select id="trsVerifiedFilter" class="filter-select" aria-label="All Status">
+              <option value="">All Status</option>
+              <option value="true">Verified</option>
+              <option value="false">Unverified</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="addTransactionBtn"><i data-lucide="plus"></i> New</button>
+            <button class="btn btn-secondary" id="syncRegRevenue"><i data-lucide="refresh-cw"></i> Sync</button>
+            <div class="dropdown-wrap">
+              <button class="btn btn-secondary" id="exportTreasuryBtn"><i data-lucide="download"></i> Reports</button>
+              <div class="export-dropdown" id="exportDropdown">
+                <button class="export-item" onclick="window.exportLedger()"><i data-lucide="file-spreadsheet"></i> Full Ledger</button>
+                <button class="export-item" onclick="window.exportIncomeStatement()"><i data-lucide="bar-chart-3"></i> Income Statement</button>
+                <button class="export-item" onclick="window.exportExpenseReport()"><i data-lucide="pie-chart"></i> Expense Report</button>
+                <button class="export-item" onclick="window.exportBudgetVariance()"><i data-lucide="git-compare"></i> Budget vs Actual</button>
+                <button class="export-item" onclick="window.exportCashFlow()"><i data-lucide="activity"></i> Cash Flow</button>
+                <button class="export-item" onclick="window.exportGSTReport()"><i data-lucide="receipt"></i> GST Summary</button>
+                <button class="export-item" onclick="window.exportTDSReport()"><i data-lucide="landmark"></i> TDS Summary</button>
+                <button class="export-item" onclick="window.exportReconciliation()"><i data-lucide="check-check"></i> Reconciliation</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-card" style="margin-bottom:16px;">
+          <h3><i data-lucide="git-compare"></i> Budget vs Actual</h3>
+          <div id="budgetVarianceTable" style="overflow-x:auto;"></div>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table" id="treasuryTable">
+            <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Category</th><th>Amount</th><th>GST</th><th>Net</th><th>Method</th><th>Verified</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SITE CONTENT -->
+      <section class="view" id="view-siteContent">
+        <div id="siteContentList" class="content-editor-list"></div>
+      </section>
+
+      <!-- AGENDA -->
+      <section class="view" id="view-agenda">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addAgendaBtn"><i data-lucide="plus"></i> Add Agenda</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="agendaTable">
+            <thead><tr><th>Day</th><th>Time</th><th>Title</th><th>Location</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- COLOUR HUNT -->
+      <section class="view" id="view-colourHunt">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addColourHuntBtn"><i data-lucide="plus"></i> Add Challenge</button>
+        </div>
+        <div id="colourHuntList" class="editor-list"></div>
+      </section>
+
+      <!-- TREASURE -->
+      <section class="view" id="view-treasure">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addTreasureBtn"><i data-lucide="plus"></i> Add Clue</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="treasureTable">
+            <thead><tr><th>#</th><th>Title</th><th>Group</th><th>Clue</th><th>Revealed</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- LEADERS -->
+      <section class="view" id="view-leaders">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addLeaderBtn"><i data-lucide="plus"></i> Add Leader</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="leadersTable">
+            <thead><tr><th>Group</th><th>Name</th><th>Role</th><th>Club</th><th>Contact</th><th>Primary</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- FOOD -->
+      <section class="view" id="view-food">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addFoodBtn"><i data-lucide="plus"></i> Add Item</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="foodTable">
+            <thead><tr><th>Day</th><th>Meal</th><th>Type</th><th>Item</th><th>Desc</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ANNOUNCEMENTS -->
+      <section class="view" id="view-announcements">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addAnnouncementBtn"><i data-lucide="plus"></i> New</button>
+        </div>
+        <div id="announcementsList" class="editor-list"></div>
+      </section>
+
+      <!-- FAQS -->
+      <section class="view" id="view-faqs">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addFaqBtn"><i data-lucide="plus"></i> Add FAQ</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="faqTable">
+            <thead><tr><th>Question</th><th>Category</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ADMINS -->
+      <section class="view" id="view-admins">
+        <div class="view-header">
+          <div></div>
+          <button class="btn btn-primary" id="addAdminBtn"><i data-lucide="user-plus"></i> Add Admin</button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table" id="adminsTable">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ACTIVITY -->
+      <section class="view" id="view-activity">
+        <div class="table-container">
+          <table class="admin-table" id="activityTable">
+            <thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th><th>Description</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<div id="adminModal" class="modal">
+  <div class="modal-content modal-large" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <h3 id="modalTitle">Modal</h3>
+      <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close dialog"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite">
+  <i data-lucide="check-circle" class="toast-icon"></i>
+  <span id="toastMessage"></span>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-spinner"></div>
+  <p id="loadingText">Loading...</p>
+</div>
+
+<div id="confirmDialog" class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal-content">
+    <div class="modal-body">
+      <div class="confirm-icon"><i data-lucide="alert-triangle"></i></div>
+      <h3 id="confirmTitle">Are you sure?</h3>
+      <p id="confirmMessage">This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirmActionBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script defer src="js/config.js"></script>
+<script defer src="js/admin.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) lucide.createIcons();
+
+  // Sidebar link click closes sidebar on mobile
+  document.querySelectorAll('.sidebar-link').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 900) closeSidebar();
+    });
+  });
+
+  // Close sidebar on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeSidebar();
+      closeModal();
+      closeConfirm();
+    }
+  });
+
+  // Prevent body scroll when sidebar open
+  const observer = new MutationObserver(() => {
+    const sidebar = document.getElementById('adminSidebar');
+    if (sidebar && sidebar.classList.contains('open')) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  });
+  const sidebar = document.getElementById('adminSidebar');
+  if (sidebar) observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+
+  // Rotating/resizing past the mobile breakpoint must not leave the dark overlay blocking the page
+  window.addEventListener('resize', () => { if (window.innerWidth > 900) closeSidebar(); });
+});
+
+// Sidebar controls
+function openSidebar() {
+  const sb = document.getElementById('adminSidebar');
+  const ov = document.getElementById('sidebarOverlay');
+  if (sb) sb.classList.add('open');
+  if (ov) ov.classList.add('active');
+}
+
+function closeSidebar() {
+  const sb = document.getElementById('adminSidebar');
+  const ov = document.getElementById('sidebarOverlay');
+  if (sb) sb.classList.remove('open');
+  if (ov) ov.classList.remove('active');
+}
+
+function togglePassword() {
+  const input = document.getElementById('loginPassword');
+  const icon = document.getElementById('pwToggleIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.setAttribute('data-lucide', 'eye-off');
+  } else {
+    input.type = 'password';
+    icon.setAttribute('data-lucide', 'eye');
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeModal() {
+  document.getElementById('adminModal').classList.remove('active');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmDialog').classList.remove('active');
+}
+
+// Prevent form zoom on iOS
+document.addEventListener('touchstart', () => {}, { passive: true });
+</script>
+</body>
+</html>
