@@ -346,9 +346,25 @@
   window.copyToClipboard = copyToClipboard;
 
   // ==================== EMAIL DISPATCH ENGINE ====================
-  async function dispatchEmail(payload) {
+  // Mail is sent one at a time, at least MAIL_GAP_MS apart. Bursts from one Gmail account
+  // get flagged as suspicious and blocked. (The Apps Script enforces the same gap.)
+  const MAIL_GAP_MS = 6000;
+  let lastMailDispatchAt = 0;
+
+  // Every email goes through this chain, so even overlapping admin actions take turns.
+  let mailChain = Promise.resolve();
+  function dispatchEmail(payload) {
+    const job = mailChain.then(() => sendMailNow(payload));
+    mailChain = job.catch(() => {});
+    return job;
+  }
+
+  async function sendMailNow(payload) {
     if (!GMAIL_API_URL) return false;
     try {
+      const wait = MAIL_GAP_MS - (Date.now() - lastMailDispatchAt);
+      if (wait > 0) await new Promise(r => setTimeout(r, wait));
+      lastMailDispatchAt = Date.now();
       await fetch(GMAIL_API_URL, {
         method: "POST",
         mode: "no-cors",
@@ -901,8 +917,9 @@
 
           const { data: members } = await db.from("members").select("*").eq("registration_id", id);
           if (members) {
-            for (const m of members) {
-              const ok = await sendApprovalEmail(m, reg.clubs?.club_name);
+            for (let i = 0; i < members.length; i++) {
+              if (members.length > 1) showLoading("Sending email " + (i + 1) + " of " + members.length + " (one at a time, please keep this page open)...");
+              const ok = await sendApprovalEmail(members[i], reg.clubs?.club_name);
               ok ? emailsSent++ : emailsFailed++;
             }
           }
@@ -952,8 +969,9 @@
           chk(await db.from("members").update({ status: "rejected" }).eq("registration_id", id));
           const { data: members } = await db.from("members").select("*").eq("registration_id", id);
           if (members) {
-            for (const m of members) {
-              const ok = await sendRejectionEmail(m, reason);
+            for (let i = 0; i < members.length; i++) {
+              if (members.length > 1) showLoading("Sending email " + (i + 1) + " of " + members.length + " (one at a time, please keep this page open)...");
+              const ok = await sendRejectionEmail(members[i], reason);
               ok ? emailsSent++ : emailsFailed++;
             }
           }
