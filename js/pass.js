@@ -45,7 +45,7 @@
   }
 
   // ==================== CONFIG ====================
-  const GMAIL_API_URL = "https://script.google.com/macros/s/AKfycbysZVY8bD1dY2UuqikOODnqLFcjC7h9ZfndZyuMe0CVDRVYJ0sXsGwnQ32wHHA4SgJ9yw/exec";
+  const GMAIL_API_URL = "https://script.google.com/macros/s/AKfycbyfL7fOqlLx7mKVpgPeRufHk41N1fwmwxqv7FZ0AYY33puGtDBRT9cYJg6qYjoWrgo6Tg/exec";
   const EMAILJS_SERVICE_ID = window.CONFIG?.EMAILJS_SERVICE_ID || "service_ojeg5q8";
   const EMAILJS_PUBLIC_KEY = window.CONFIG?.EMAILJS_PUBLIC_KEY || "M1tEIYjvJ0UmKdDW8";
   const EMAILJS_TEMPLATE_OTP = window.CONFIG?.EMAILJS_TEMPLATES?.OTP || "template_otp";
