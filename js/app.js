@@ -405,14 +405,9 @@
           groupDisplay.value = opt && opt.dataset.group ? `Group ${opt.dataset.group}` : "";
         }
         if (slotsInfo) {
-          const avail = opt && opt.dataset.available;
-          if (avail !== undefined && avail !== "") {
-            slotsInfo.textContent = `${avail} seat${Number(avail) === 1 ? "" : "s"} available`;
-            slotsInfo.style.display = "block";
-          } else {
-            slotsInfo.textContent = "";
-            slotsInfo.style.display = "none";
-          }
+          // seat availability is intentionally not shown while choosing a club
+          slotsInfo.textContent = "";
+          slotsInfo.style.display = "none";
         }
       });
     } catch (err) {
