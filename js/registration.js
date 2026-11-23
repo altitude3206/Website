@@ -45,7 +45,7 @@
   initDb();
 
   // ==================== CONFIGURATION ====================
-  const GMAIL_API_URL = "https://script.google.com/macros/s/AKfycbysZVY8bD1dY2UuqikOODnqLFcjC7h9ZfndZyuMe0CVDRVYJ0sXsGwnQ32wHHA4SgJ9yw/exec";
+  const GMAIL_API_URL = "https://script.google.com/macros/s/AKfycbyfL7fOqlLx7mKVpgPeRufHk41N1fwmwxqv7FZ0AYY33puGtDBRT9cYJg6qYjoWrgo6Tg/exec";
   const FEE_PER_PERSON = 3000;
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const MAX_MEMBERS_PER_FORM = 50;
