@@ -262,7 +262,7 @@
           opt.dataset.available = remaining;
           opt.dataset.group = c.group_number;
           opt.dataset.clubName = c.club_name;
-          opt.textContent = c.club_name + " — " + (remaining > 0 ? remaining + " seats available" : "FULL");
+          opt.textContent = c.club_name + (remaining > 0 ? "" : " (Full)");
           if (remaining <= 0) {
             opt.disabled = true;
             opt.style.color = "#999";
