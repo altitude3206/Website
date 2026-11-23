@@ -36,7 +36,7 @@
   }
 
   // ==================== CONFIG ====================
-  const GMAIL_API_URL = "https://script.google.com/macros/s/AKfycbysZVY8bD1dY2UuqikOODnqLFcjC7h9ZfndZyuMe0CVDRVYJ0sXsGwnQ32wHHA4SgJ9yw/exec";
+  const GMAIL_API_URL = "https://script.google.com/macros/s/AKfycbyfL7fOqlLx7mKVpgPeRufHk41N1fwmwxqv7FZ0AYY33puGtDBRT9cYJg6qYjoWrgo6Tg/exec";
   const SESSION_HOURS = 8;
   const AUTO_REFRESH_INTERVAL = 30000;
   const REALTIME_ENABLED = true;
