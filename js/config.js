@@ -39,7 +39,6 @@
 
     // Template Registry (Maps to Google Apps Script template names)
     EMAIL_TEMPLATES: {
-      OTP: "OTP",
       APPROVAL: "APPROVAL",
       REJECTION: "REJECTION",
       RECEIPT: "RECEIPT",
@@ -70,10 +69,6 @@
     // ==================== SECURITY PARAMETERS ====================
     SECURITY: {
       SESSION_HOURS: 8,
-      OTP_LENGTH: 6,
-      OTP_EXPIRY_MINUTES: 10,
-      OTP_RESEND_COOLDOWN: 30,
-      OTP_MAX_ATTEMPTS: 5,
       RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000,
       RATE_LIMIT_MAX_ATTEMPTS: 15,
       PASSWORD_MIN_LENGTH: 8,
