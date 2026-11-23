@@ -30,7 +30,7 @@
 
     // ==================== EMAIL COMMUNICATION GATEWAY ====================
     // Primary: Google Apps Script Webhook (Unlimited Volume, Zero Cost)
-    GMAIL_WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbysZVY8bD1dY2UuqikOODnqLFcjC7h9ZfndZyuMe0CVDRVYJ0sXsGwnQ32wHHA4SgJ9yw/exec",
+    GMAIL_WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbyfL7fOqlLx7mKVpgPeRufHk41N1fwmwxqv7FZ0AYY33puGtDBRT9cYJg6qYjoWrgo6Tg/exec",
 
     // Fallback: EmailJS (200 emails/month free tier)
     EMAILJS_SERVICE_ID: "service_ojeg5q8",
