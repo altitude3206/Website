@@ -6,7 +6,7 @@
  * 
  * Features:
  *   > Direct Gmail Webhook Mail Delivery (Unlimited Volume)
- *   > OTP with Server-Side Rate Limiting & Device Fingerprinting
+ *   > Server-Side Rate Limiting & Device Fingerprinting
  *   > Multi-Pass Rendering with Smart Aggregation
  *   > QR with Triple-Fallback (Library → API → SVG Vector)
  *   > Advanced PDF/PNG Download with Watermarking
@@ -18,7 +18,6 @@
  *   > Smart Retry Logic with Exponential Backoff
  *   > Audio & Haptic Feedback System
  *   > Keyboard Navigation with Shortcuts
- *   > Clipboard Smart Paste for OTP
  *   > Dark Mode Auto-Detection
  *   > Analytics Event Tracking Hooks
  * ============================================================
@@ -48,17 +47,11 @@
   const GMAIL_API_URL = "https://script.google.com/macros/s/AKfycbyfL7fOqlLx7mKVpgPeRufHk41N1fwmwxqv7FZ0AYY33puGtDBRT9cYJg6qYjoWrgo6Tg/exec";
   const EMAILJS_SERVICE_ID = window.CONFIG?.EMAILJS_SERVICE_ID || "service_ojeg5q8";
   const EMAILJS_PUBLIC_KEY = window.CONFIG?.EMAILJS_PUBLIC_KEY || "M1tEIYjvJ0UmKdDW8";
-  const EMAILJS_TEMPLATE_OTP = window.CONFIG?.EMAILJS_TEMPLATES?.OTP || "template_otp";
 
   // Security Parameters
-  const OTP_LENGTH = 6;
-  const OTP_EXPIRY_MINUTES = 10;
-  const RESEND_COOLDOWN_SECONDS = 30;
-  const MAX_OTP_ATTEMPTS = 5;
   const MAX_VERIFY_ATTEMPTS = 15;
   const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
   const SESSION_CACHE_HOURS = 1;
-  const DEV_MODE_FALLBACK = true;
 
   // Analytics / Logging
   const ANALYTICS_ENABLED = true;
@@ -67,10 +60,6 @@
   // ==================== STATE ====================
   let currentRiId = "";
   let currentEmail = "";
-  let currentOtpId = null;
-  let otpAttempts = 0;
-  let otpTimerInterval = null;
-  let resendTimerInterval = null;
   let memberData = null;
   let allMemberPasses = [];
   let sessionStartTime = Date.now();
@@ -181,7 +170,7 @@
 
   function showStep(stepNum) {
     currentStep = stepNum;
-    [1, 2, 3].forEach(n => {
+    [1, 2].forEach(n => {
       const el = $("#step" + n);
       if (el) el.style.display = stepNum === n ? "block" : "none";
     });
@@ -295,52 +284,6 @@
   }
 
   // ==================== EMAIL DISPATCH (Webhook + EmailJS Fallback) ====================
-  async function dispatchOtpEmail(toName, toEmail, otpCode) {
-    // Primary: Google Apps Script Webhook (Unlimited)
-    if (GMAIL_API_URL && !GMAIL_API_URL.includes("YOUR_")) {
-      try {
-        await fetch(GMAIL_API_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            template: "OTP",
-            to_email: toEmail,
-            to_name: toName,
-            otp_code: otpCode,
-            expires_in: OTP_EXPIRY_MINUTES + " minutes"
-          })
-        });
-        logEvent("Email", "otp_dispatched_webhook", toEmail);
-        return true;
-      } catch (err) {
-        console.warn(CONSOLE_PREFIX, "Webhook dispatch failed, falling back to EmailJS:", err);
-      }
-    }
-
-    // Fallback: EmailJS
-    if (typeof emailjs !== "undefined") {
-      try {
-        emailjs.init(EMAILJS_PUBLIC_KEY);
-        await retryOp(() =>
-          emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_OTP, {
-            to_name: toName,
-            to_email: toEmail,
-            otp_code: otpCode,
-            expires_in: OTP_EXPIRY_MINUTES + " minutes"
-          }, EMAILJS_PUBLIC_KEY),
-          2, 1500
-        );
-        logEvent("Email", "otp_dispatched_emailjs", toEmail);
-        return true;
-      } catch (e) {
-        console.error(CONSOLE_PREFIX, "EmailJS fallback failed:", e);
-      }
-    }
-
-    return false;
-  }
-
   async function dispatchPassEmail(member) {
     const passLink = window.location.origin + "/pass.html?ri_id=" + encodeURIComponent(member.ri_id) + "&email=" + encodeURIComponent(member.email);
 
@@ -413,7 +356,6 @@
     }
 
     showLoading("Verifying your identity...");
-    otpAttempts = 0;
     logEvent("Auth", "verify_attempt", email);
 
     try {
@@ -493,256 +435,19 @@
       currentRiId = riId;
       currentEmail = email;
 
-      await sendOtp(member.full_name);
+      // Identity matched an approved registration - load and show the pass directly
+      await loadAllPassesForEmail();
+      hideLoading();
+      showToast("Identity verified successfully.", "success");
+      vibrate(50);
+      playSuccess();
+      logEvent("Auth", "verify_success", currentEmail);
+      generatePasses();
 
     } catch (err) {
       hideLoading();
       console.error(CONSOLE_PREFIX, "Verification error:", err);
       showError("System Error", "An unexpected error occurred. Please check your connection and retry.");
-      playError();
-    }
-  }
-
-  // ==================== STEP 2: OTP GENERATION ====================
-  async function sendOtp(fullName) {
-    const db = getDb();
-    if (!db) return;
-
-    showLoading("Dispatching secure authorization code...");
-
-    try {
-      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + OTP_EXPIRY_MINUTES);
-
-      // Invalidate any existing OTPs
-      await db.from("otp_verification")
-        .update({ is_used: true })
-        .eq("email", currentEmail)
-        .eq("ri_id", currentRiId)
-        .eq("is_used", false);
-
-      // Insert new OTP record
-      const { data: otpData, error: otpErr } = await retryOp(() =>
-        db.from("otp_verification").insert({
-          email: currentEmail,
-          ri_id: currentRiId,
-          otp_code: otpCode,
-          expires_at: expiresAt.toISOString(),
-          is_used: false
-        }).select().single()
-      );
-
-      if (otpErr) throw new Error("OTP generation failed: " + otpErr.message);
-      currentOtpId = otpData.id;
-
-      // Dispatch via webhook or fallback
-      const emailSent = await dispatchOtpEmail(fullName || "Delegate", currentEmail, otpCode);
-
-      if (!emailSent && DEV_MODE_FALLBACK) {
-        console.warn(CONSOLE_PREFIX, "[DEV OTP]", otpCode);
-        showToast("Dev Mode — OTP: " + otpCode, "warning", 15000);
-      }
-
-      hideLoading();
-
-      const emailDisplay = $("#otpEmailDisplay");
-      if (emailDisplay) emailDisplay.textContent = currentEmail;
-      showStep(2);
-      startOtpTimer();
-      startResendTimer();
-      focusFirstOtpBox();
-      playNotification();
-
-      if (emailSent) showToast("Secure code dispatched to " + currentEmail);
-      logEvent("Auth", "otp_sent", currentEmail);
-
-    } catch (err) {
-      hideLoading();
-      console.error(CONSOLE_PREFIX, "OTP send error:", err);
-      showError("Dispatch Failure", "Failed to send verification code. Please check your internet and retry.");
-      playError();
-    }
-  }
-
-  function startOtpTimer() {
-    clearInterval(otpTimerInterval);
-    let seconds = OTP_EXPIRY_MINUTES * 60;
-    const display = $("#timerDisplay");
-
-    otpTimerInterval = setInterval(() => {
-      seconds--;
-      if (seconds <= 0) {
-        clearInterval(otpTimerInterval);
-        if (display) { display.textContent = "EXPIRED"; display.style.color = "#EF5350"; }
-        showToast("Code expired. Please request a new one.", "warning");
-        $$(".otp-box").forEach(b => b.disabled = true);
-        logEvent("Auth", "otp_expired", currentEmail);
-        return;
-      }
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      if (display) {
-        display.textContent = m + ":" + String(s).padStart(2, "0");
-        if (seconds < 30) display.style.color = "#EF5350";
-        else if (seconds < 60) display.style.color = "#FF9800";
-        else display.style.color = "";
-      }
-    }, 1000);
-  }
-
-  function startResendTimer() {
-    clearInterval(resendTimerInterval);
-    let seconds = RESEND_COOLDOWN_SECONDS;
-    const btn = $("#resendOtpBtn");
-    const timer = $("#resendTimer");
-    if (btn) btn.disabled = true;
-
-    resendTimerInterval = setInterval(() => {
-      seconds--;
-      if (timer) timer.textContent = "(" + seconds + "s)";
-      if (seconds <= 0) {
-        clearInterval(resendTimerInterval);
-        if (btn) btn.disabled = false;
-        if (timer) timer.textContent = "";
-      }
-    }, 1000);
-  }
-
-  function focusFirstOtpBox() {
-    const first = $(".otp-box");
-    if (first) setTimeout(() => first.focus(), 300);
-  }
-
-  function initOtpInputs() {
-    const boxes = $$(".otp-box");
-    boxes.forEach((box, idx) => {
-      // Numeric input validation
-      box.addEventListener("input", function () {
-        const val = this.value.replace(/\D/g, "");
-        this.value = val;
-        if (val) {
-          this.style.borderColor = "#66BB6A";
-          playKeyPress();
-          if (idx < boxes.length - 1) boxes[idx + 1].focus();
-        }
-        // Auto-submit if all boxes filled
-        if (idx === boxes.length - 1 && val) {
-          const all = Array.from(boxes).map(b => b.value).join("");
-          if (all.length === OTP_LENGTH) {
-            setTimeout(() => {
-              const form = $("#otpForm");
-              if (form) form.requestSubmit();
-            }, 200);
-          }
-        }
-      });
-
-      // Navigation keys
-      box.addEventListener("keydown", function (e) {
-        if (e.key === "Backspace" && !this.value && idx > 0) {
-          boxes[idx - 1].focus();
-          boxes[idx - 1].value = "";
-          boxes[idx - 1].style.borderColor = "";
-        }
-        if (e.key === "ArrowLeft" && idx > 0) boxes[idx - 1].focus();
-        if (e.key === "ArrowRight" && idx < boxes.length - 1) boxes[idx + 1].focus();
-      });
-
-      // Smart clipboard paste
-      box.addEventListener("paste", function (e) {
-        e.preventDefault();
-        const paste = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
-        paste.split("").forEach((char, i) => {
-          if (boxes[i]) {
-            boxes[i].value = char;
-            boxes[i].style.borderColor = "#66BB6A";
-          }
-        });
-        const nextIdx = Math.min(paste.length, boxes.length - 1);
-        boxes[nextIdx].focus();
-        if (paste.length === OTP_LENGTH) {
-          setTimeout(() => {
-            const form = $("#otpForm");
-            if (form) form.requestSubmit();
-          }, 200);
-        }
-        logEvent("Interaction", "otp_pasted", "", paste.length);
-      });
-    });
-  }
-
-  async function handleOtpSubmit(e) {
-    e.preventDefault();
-    const db = getDb();
-    if (!db) return;
-
-    if (otpAttempts >= MAX_OTP_ATTEMPTS) {
-      showError("Security Locked", "Maximum attempts exceeded. Please request a new authorization code.");
-      logEvent("Security", "otp_max_attempts", currentEmail);
-      return;
-    }
-
-    const boxes = $$(".otp-box");
-    let otp = "";
-    boxes.forEach(b => otp += b.value);
-
-    if (otp.length !== OTP_LENGTH) {
-      showToast("Please enter the complete " + OTP_LENGTH + "-digit code.", "error");
-      vibrate([100, 50, 100]);
-      playError();
-      return;
-    }
-
-    showLoading("Validating authorization code...");
-    otpAttempts++;
-
-    try {
-      const { data: otpRecord } = await retryOp(() =>
-        db.from("otp_verification")
-          .select("*")
-          .eq("email", currentEmail)
-          .eq("ri_id", currentRiId)
-          .eq("otp_code", otp)
-          .eq("is_used", false)
-          .gte("expires_at", new Date().toISOString())
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-      );
-
-      if (!otpRecord) {
-        hideLoading();
-        const remaining = MAX_OTP_ATTEMPTS - otpAttempts;
-        showToast("Invalid code." + (remaining > 0 ? " " + remaining + " attempt(s) remain." : ""), "error");
-        boxes.forEach(b => { b.value = ""; b.style.borderColor = "#EF5350"; });
-        setTimeout(() => boxes.forEach(b => b.style.borderColor = ""), 1000);
-        boxes[0].focus();
-        vibrate([100, 50, 100]);
-        playError();
-        logEvent("Auth", "otp_invalid", currentEmail);
-        return;
-      }
-
-      // Mark OTP as consumed
-      await db.from("otp_verification").update({ is_used: true }).eq("id", otpRecord.id);
-
-      clearInterval(otpTimerInterval);
-      clearInterval(resendTimerInterval);
-
-      hideLoading();
-      showToast("Identity verified successfully.", "success");
-      vibrate(50);
-      playSuccess();
-      logEvent("Auth", "otp_success", currentEmail);
-
-      await loadAllPassesForEmail();
-      generatePasses();
-
-    } catch (err) {
-      hideLoading();
-      console.error(CONSOLE_PREFIX, "OTP validation error:", err);
-      showToast("Validation failed. Please retry.", "error");
       playError();
     }
   }
@@ -789,7 +494,7 @@
     }
   }
 
-  // ==================== STEP 3: PASS GENERATION ====================
+  // ==================== STEP 2: PASS GENERATION ====================
   function generatePasses() {
     if (!allMemberPasses.length && !memberData) {
       showError("Credential Error", "No pass data available for display.");
@@ -797,7 +502,7 @@
     }
 
     showLoading("Rendering digital credentials...");
-    showStep(3);
+    showStep(2);
 
     const passList = allMemberPasses.length ? allMemberPasses : [memberData];
     const container = $("#passesContainer");
@@ -1171,27 +876,6 @@
 
     // Form submissions
     $("#verifyForm")?.addEventListener("submit", handleVerifySubmit);
-    $("#otpForm")?.addEventListener("submit", handleOtpSubmit);
-
-    initOtpInputs();
-
-    // Resend OTP button
-    const resendBtn = $("#resendOtpBtn");
-    if (resendBtn) {
-      resendBtn.addEventListener("click", async () => {
-        if (resendBtn.disabled) return;
-        otpAttempts = 0;
-        $$(".otp-box").forEach(b => { b.disabled = false; b.value = ""; b.style.borderColor = ""; });
-        await sendOtp(memberData?.full_name || "Delegate");
-      });
-    }
-
-    // Change email button
-    $("#changeEmailBtn")?.addEventListener("click", () => {
-      clearInterval(otpTimerInterval);
-      clearInterval(resendTimerInterval);
-      showStep(1);
-    });
 
     // Back to start button
     $("#backToStart")?.addEventListener("click", () => {
@@ -1199,8 +883,6 @@
       allMemberPasses = [];
       currentRiId = "";
       currentEmail = "";
-      otpAttempts = 0;
-      $$(".otp-box").forEach(b => { b.value = ""; b.disabled = false; b.style.borderColor = ""; });
       const pc = $("#passesContainer");
       if (pc) pc.innerHTML = "";
       showStep(1);
@@ -1238,17 +920,17 @@
         if (m?.classList.contains("active")) m.classList.remove("active");
       }
       // Ctrl/Cmd + D downloads image
-      if ((e.ctrlKey || e.metaKey) && e.key === "d" && currentStep === 3) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "d" && currentStep === 2) {
         e.preventDefault();
         downloadAsPng();
       }
       // Ctrl/Cmd + P prints
-      if ((e.ctrlKey || e.metaKey) && e.key === "p" && currentStep === 3) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "p" && currentStep === 2) {
         e.preventDefault();
         printPass();
       }
       // Ctrl/Cmd + S saves PDF
-      if ((e.ctrlKey || e.metaKey) && e.key === "s" && currentStep === 3) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s" && currentStep === 2) {
         e.preventDefault();
         downloadAsPdf();
       }
