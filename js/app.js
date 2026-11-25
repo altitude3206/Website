@@ -727,6 +727,13 @@
   }
 
   // ==================== INDIVIDUAL REGISTRATION TRACKER ====================
+  // Lookup order:
+  //   1) RPC  public.track_registration(p_ri_id)  (SECURITY DEFINER, see sql/tracker_fix.sql)
+  //   2) Fallback: direct table reads (only used if the SQL has not been installed yet)
+  // "No Registration Found" is shown ONLY when the lookup genuinely found nothing.
+  // A failed lookup shows a separate "could not check" message instead.
+  let trackerRequestId = 0;
+
   function initTracker() {
     const form = document.getElementById("trackerForm");
     if (!form) return;
@@ -735,13 +742,14 @@
       e.preventDefault();
       const riIdEl = document.getElementById("trackerRiId");
       if (!riIdEl) return;
-      const riId = riIdEl.value.trim();
+      const riId = cleanRiId(riIdEl.value);
       if (!riId) { showToast("Please enter your RI ID", "error"); return; }
+      riIdEl.value = riId;
       await searchRegistration(riId);
     });
 
     const params = new URLSearchParams(window.location.search);
-    const paramRiId = params.get("ri_id");
+    const paramRiId = cleanRiId(params.get("ri_id") || "");
     if (paramRiId) {
       const input = document.getElementById("trackerRiId");
       if (input) {
@@ -751,7 +759,144 @@
     }
   }
 
-  async function searchRegistration(riId) {
+  function cleanRiId(value) {
+    return String(value == null ? "" : value).replace(/\s+/g, "").slice(0, 20);
+  }
+
+  function setTrackerNotice(el, kind, riId) {
+    if (!el) return;
+    const heading = el.querySelector("h3");
+    const text = el.querySelector("p");
+    const cta = el.querySelector("a.btn");
+    if (!el.dataset.defaults) {
+      el.dataset.defaults = JSON.stringify({
+        h: heading ? heading.textContent : "",
+        p: text ? text.textContent : ""
+      });
+    }
+    const def = JSON.parse(el.dataset.defaults);
+    if (kind === "error") {
+      if (heading) heading.textContent = "Couldn't Check Right Now";
+      if (text) text.textContent = "We couldn't reach the server. Please check your connection and try again in a moment.";
+      if (cta) cta.style.display = "none";
+    } else {
+      if (heading) heading.textContent = def.h;
+      if (text) text.textContent = riId
+        ? `No registration found for RI ID "${riId}". Please check the ID or register first.`
+        : def.p;
+      if (cta) cta.style.display = "";
+    }
+  }
+
+  function trackerStatusOf(raw) {
+    const s = String(raw || "pending").toLowerCase();
+    return s === "approved" || s === "rejected" ? s : "pending";
+  }
+
+  // Club delegate row (+ embedded club / registration) -> common record shape
+  function recordFromMemberRow(m) {
+    const reg = Array.isArray(m.registrations) ? (m.registrations[0] || null) : (m.registrations || null);
+    const regStatus = String(reg?.status || "").toLowerCase();
+    const status = (regStatus === "approved" || regStatus === "rejected")
+      ? regStatus
+      : trackerStatusOf(m.status || reg?.status);
+    return {
+      type: "Club",
+      full_name: m.full_name,
+      ri_id: m.ri_id,
+      member_code: m.member_code,
+      registration_code: reg?.registration_code || null,
+      status,
+      club_name: m.clubs?.club_name || null,
+      group_number: m.clubs?.group_number || null,
+      food_preference: m.food_preference,
+      is_board_member: !!m.is_board_member,
+      registration_fee: m.registration_fee,
+      batch_size: null,
+      registered_at: reg?.created_at || m.created_at || null,
+      verified_at: reg?.verified_at || m.verified_at || null,
+      rejection_reason: reg?.rejection_reason || m.rejection_reason || null,
+      attendance_checked: !!m.attendance_checked,
+      email_masked: maskEmail(m.email),
+      phone_masked: maskPhone(m.contact_number)
+    };
+  }
+
+  function recordFromDcRow(d) {
+    return {
+      type: "District Council",
+      full_name: d.full_name,
+      ri_id: d.ri_id,
+      member_code: d.member_code,
+      registration_code: d.registration_code || null,
+      status: trackerStatusOf(d.status),
+      club_name: d.portfolio || "District Council",
+      group_number: "DC",
+      food_preference: d.food_preference,
+      is_board_member: d.is_board_member !== false,
+      registration_fee: d.registration_fee,
+      batch_size: null,
+      registered_at: d.created_at || null,
+      verified_at: d.verified_at || null,
+      rejection_reason: d.rejection_reason || null,
+      attendance_checked: !!d.attendance_checked,
+      email_masked: maskEmail(d.email),
+      phone_masked: maskPhone(d.contact_number)
+    };
+  }
+
+  function maskEmail(email) {
+    const e = String(email || "");
+    const at = e.indexOf("@");
+    if (at < 1) return null;
+    return e.slice(0, Math.min(2, at)) + "***" + e.slice(at);
+  }
+
+  function maskPhone(phone) {
+    const p = String(phone || "").replace(/\D/g, "");
+    return p.length >= 4 ? "******" + p.slice(-4) : null;
+  }
+
+  async function fetchTrackerRecord(db, riId) {
+    // 1) Preferred path: server-side function (works regardless of table RLS)
+    const { data, error } = await db.rpc("track_registration", { p_ri_id: riId });
+    if (!error) {
+      const rec = typeof data === "string" ? JSON.parse(data) : data;
+      if (!rec || !rec.found) return null;
+      return { ...rec, status: trackerStatusOf(rec.status) };
+    }
+
+    const fnMissing =
+      error.code === "PGRST202" || error.code === "42883" ||
+      /could not find the function|function .* does not exist/i.test(error.message || "");
+    if (!fnMissing) throw error;
+
+    // 2) Fallback: direct reads (needs public SELECT access on the tables)
+    logWarn("track_registration() is not installed - run sql/tracker_fix.sql. Using direct table reads.");
+
+    const { data: members, error: memberErr } = await db
+      .from("members")
+      .select("*, clubs(club_name, group_number), registrations(registration_code, status, created_at, verified_at, rejection_reason)")
+      .eq("ri_id", riId)
+      .limit(1);
+    if (memberErr) throw memberErr;
+    if (members && members.length) return recordFromMemberRow(members[0]);
+
+    const { data: dcRows, error: dcErr } = await db
+      .from("district_council_registrations")
+      .select("*")
+      .eq("ri_id", riId)
+      .limit(1);
+    if (dcErr) throw dcErr;
+    if (dcRows && dcRows.length) return recordFromDcRow(dcRows[0]);
+
+    return null;
+  }
+
+  async function searchRegistration(riIdInput) {
+    const riId = cleanRiId(riIdInput);
+    if (!riId) return;
+
     let db = STATE.db || getDb();
     if (!db) {
       try { db = await waitForDb(5000); } catch (e) { /* handled below */ }
@@ -761,6 +906,7 @@
     const resultEl = document.getElementById("trackerResult");
     const notFoundEl = document.getElementById("trackerNotFound");
     const searchBtn = document.getElementById("trackerSearchBtn");
+    const requestId = ++trackerRequestId;
 
     if (resultEl) resultEl.style.display = "none";
     if (notFoundEl) notFoundEl.style.display = "none";
@@ -772,54 +918,24 @@
     }
 
     try {
-      const { data: foundMember, error: memberErr } = await db
-        .from("members")
-        .select("*, clubs(club_name, group_number), registrations(registration_code, status, created_at, verified_at, rejection_reason)")
-        .eq("ri_id", riId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (memberErr) throw memberErr;
-      let member = foundMember;
+      const record = await fetchTrackerRecord(db, riId);
+      if (requestId !== trackerRequestId) return; // a newer search replaced this one
 
-      let memberType = "Club";
-
-      if (!member) {
-        const { data: dc, error: dcErr } = await db
-          .from("district_council_registrations")
-          .select("*")
-          .eq("ri_id", riId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (dcErr) throw dcErr;
-        if (dc) {
-          member = {
-            ...dc,
-            clubs: { club_name: dc.portfolio || "District Council", group_number: "DC" },
-            registrations: {
-              registration_code: dc.registration_code,
-              status: dc.status,
-              created_at: dc.created_at,
-              verified_at: dc.verified_at,
-              rejection_reason: dc.rejection_reason
-            }
-          };
-          memberType = "District Council";
-        }
-      }
-
-      if (!member) {
+      if (!record) {
+        setTrackerNotice(notFoundEl, "notfound", riId);
         if (notFoundEl) {
           notFoundEl.style.display = "block";
           notFoundEl.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       } else {
-        renderTrackerResult(member, memberType);
+        renderTrackerResult(record);
         if (resultEl) resultEl.style.display = "block";
       }
     } catch (err) {
+      if (requestId !== trackerRequestId) return;
       logError("Tracker error:", err);
+      setTrackerNotice(notFoundEl, "error");
+      if (notFoundEl) notFoundEl.style.display = "block";
       showToast("Search failed. Please try again.", "error");
     } finally {
       if (searchBtn) {
@@ -830,34 +946,38 @@
     }
   }
 
-  function renderTrackerResult(member, type) {
+  function renderTrackerResult(rec) {
     const container = document.getElementById("trackerResult");
     if (!container) return;
-    if (Array.isArray(member.registrations)) member = { ...member, registrations: member.registrations[0] || null };
 
-    const status = String(member.status || member.registrations?.status || "pending").toLowerCase();
-    const regCode = member.registrations?.registration_code || member.registration_code || "N/A";
-    const clubName = member.clubs?.club_name || type;
-    const groupNum = member.clubs?.group_number || "DC";
-    const memberCode = member.member_code || "N/A";
-    const food = member.food_preference || "N/A";
-    const isBoard = member.is_board_member ? "Yes" : "No";
-    const createdAt = member.registrations?.created_at || member.created_at;
-    const verifiedAt = member.registrations?.verified_at || member.verified_at;
-    const rejectionReason = member.registrations?.rejection_reason || member.rejection_reason;
-    const passGenerated = member.pass_generated || false;
-    const attended = member.attendance_checked || false;
+    const status = trackerStatusOf(rec.status);
+    const isDc = rec.type === "District Council" || rec.group_number === "DC";
+    const attended = !!rec.attendance_checked;
 
     const statusIcons = { approved: "check-circle-2", pending: "clock", rejected: "x-circle" };
     const statusLabels = { approved: "Registration Approved", pending: "Verification Pending", rejected: "Registration Rejected" };
+    const verifyText = {
+      approved: "Verified & Approved",
+      pending: "Pending - payment under verification",
+      rejected: "Rejected"
+    };
+    const verifyColor = { approved: "var(--green-700)", pending: "var(--orange)", rejected: "var(--red)" };
+
+    const fee = rec.registration_fee != null && rec.registration_fee !== "" && !isNaN(Number(rec.registration_fee))
+      ? "₹" + Number(rec.registration_fee).toLocaleString("en-IN")
+      : "N/A";
+    const verifiedOn = status === "pending"
+      ? "Awaiting verification"
+      : (rec.verified_at ? formatDate(rec.verified_at) : "N/A");
+    const groupDisplay = isDc ? "District Council" : (rec.group_number ? `Group ${rec.group_number}` : "N/A");
 
     const steps = [
       { label: "Registered", completed: true, icon: "file-text" },
       { label: "Payment", completed: true, icon: "credit-card" },
       { label: "Verification", completed: status === "approved" || status === "rejected", current: status === "pending", icon: "shield-check" },
       { label: "Approved", completed: status === "approved", current: false, icon: "check-circle" },
-      { label: "Pass Ready", completed: passGenerated && status === "approved", current: status === "approved" && !passGenerated, icon: "ticket" },
-      { label: "Attended", completed: attended, current: status === "approved" && passGenerated && !attended, icon: "map-pin" }
+      { label: "Pass Ready", completed: status === "approved", current: false, icon: "ticket" },
+      { label: "Attended", completed: attended, current: status === "approved" && !attended, icon: "map-pin" }
     ];
 
     const timelineHtml = steps.map(s => {
@@ -870,43 +990,55 @@
       `;
     }).join("");
 
-    const groupDisplay = groupNum === "DC" ? "District Council" : `Group ${groupNum}`;
+    const item = (label, value, opts = {}) => `
+            <div class="tracker-detail-item${opts.full ? " full-width" : ""}"><div class="tracker-detail-label">${escapeHtml(label)}</div><div class="tracker-detail-value${opts.mono ? " mono" : ""}"${opts.style ? ` style="${opts.style}"` : ""}>${opts.raw ? value : escapeHtml(value)}</div></div>`;
+
+    const details = [
+      item("Registration ID", rec.registration_code || "N/A", { mono: true }),
+      item("Member Code", rec.member_code || "N/A", { mono: true }),
+      item("RI ID", rec.ri_id || "N/A", { mono: true }),
+      item("Type", rec.type || "Club"),
+      item(isDc ? "Portfolio" : "Club", rec.club_name || "N/A"),
+      item("Group", groupDisplay),
+      item("Email", rec.email_masked || "N/A"),
+      item("Phone", rec.phone_masked || "N/A"),
+      item("Food Preference", rec.food_preference || "N/A"),
+      item("Board Member", rec.is_board_member ? "Yes" : "No"),
+      item("Registration Fee", fee),
+      rec.batch_size ? item("Delegates in Batch", String(rec.batch_size)) : "",
+      item("Registered On", formatDate(rec.registered_at)),
+      item("Verification Status", verifyText[status], { style: `color:${verifyColor[status]};font-weight:700;` }),
+      item("Verified On", verifiedOn),
+      status === "approved" ? item("Attendance", attended ? "Checked in" : "Not checked in yet") : "",
+      status === "rejected" && rec.rejection_reason ? item("Rejection Reason", rec.rejection_reason, { full: true, style: "color:var(--red);" }) : ""
+    ].join("");
 
     container.innerHTML = `
       <div class="tracker-result-card">
-        <div class="tracker-result-header status-${escapeHtml(status)}">
-          <div class="tracker-status-icon"><i data-lucide="${statusIcons[status] || "help-circle"}"></i></div>
+        <div class="tracker-result-header status-${status}">
+          <div class="tracker-status-icon"><i data-lucide="${statusIcons[status]}"></i></div>
           <div class="tracker-status-info">
-            <h3>${escapeHtml(member.full_name || "Member")}</h3>
-            <div class="tracker-status-label">${escapeHtml(statusLabels[status] || "Unknown")}</div>
+            <h3>${escapeHtml(rec.full_name || "Member")}</h3>
+            <div class="tracker-status-label">${escapeHtml(statusLabels[status])}</div>
           </div>
         </div>
         <div class="tracker-result-body">
-          <div class="tracker-detail-grid">
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Registration ID</div><div class="tracker-detail-value mono">${escapeHtml(regCode)}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Member Code</div><div class="tracker-detail-value mono">${escapeHtml(memberCode)}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">RI ID</div><div class="tracker-detail-value mono">${escapeHtml(member.ri_id || "N/A")}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Type</div><div class="tracker-detail-value">${escapeHtml(type)}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Club</div><div class="tracker-detail-value">${escapeHtml(clubName)}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Group</div><div class="tracker-detail-value">${escapeHtml(groupDisplay)}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Food Preference</div><div class="tracker-detail-value">${escapeHtml(food)}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Board Member</div><div class="tracker-detail-value">${escapeHtml(isBoard)}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Registered On</div><div class="tracker-detail-value">${formatDate(createdAt)}</div></div>
-            <div class="tracker-detail-item"><div class="tracker-detail-label">Verified On</div><div class="tracker-detail-value">${verifiedAt ? formatDate(verifiedAt) : "Pending"}</div></div>
+          <div class="tracker-detail-grid">${details}
           </div>
         </div>
         <div class="tracker-timeline">${timelineHtml}</div>
         ${status === "approved" ? `
-          <div class="tracker-result-footer">
-            <a href="pass.html?ri_id=${encodeURIComponent(member.ri_id || "")}&email=${encodeURIComponent(member.email || "")}" class="btn btn-primary">
+          <div class="tracker-result-footer" style="flex-direction:column;gap:12px;">
+            <a href="pass.html?ri_id=${encodeURIComponent(rec.ri_id || "")}" class="btn btn-primary">
               <i data-lucide="download"></i> Download Pass
             </a>
+            <p style="font-size:0.8rem;color:var(--gray-600);margin:0;text-align:center;">Enter the email you registered with to unlock your pass.</p>
           </div>` : ""
         }
         ${status === "rejected" ? `
           <div class="tracker-result-footer" style="background:var(--red-light);">
             <p style="color:var(--red);font-weight:600;margin:0;text-align:center;">
-              <strong>Reason:</strong> ${escapeHtml(rejectionReason || "Contact the organizing team")}
+              <strong>Reason:</strong> ${escapeHtml(rec.rejection_reason || "Contact the organizing team")}
             </p>
           </div>` : ""
         }
